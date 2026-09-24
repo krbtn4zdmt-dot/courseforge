@@ -23,7 +23,7 @@ Status key: `[ ]` todo · `[~]` in progress · `[x]` done. Claude Code updates t
 ## Phase 1: Pipeline as a CLI (no UI, no database)
 Goal: prove the course quality before building any app. Output is a JSON file you can read.
 
-### [ ] 1.1 Time-budget engine
+### [x] 1.1 Time-budget engine
 **Acceptance:** `timeBudget.ts` implements the rules in ARCHITECTURE.md; ≥ 8 unit tests including 1-day, 7-day, 30-day, skill vs knowledge, final-day review, and the worked-examples table; a test sweeps every `minutesPerDay` from 15 to 90 and asserts every day sums to `minutesPerDay` and every lesson is 10–25 min.
 **Prompt:**
 > Do task 1.1. Implement the time-budget engine exactly per docs/ARCHITECTURE.md as a pure function with thorough tests.
