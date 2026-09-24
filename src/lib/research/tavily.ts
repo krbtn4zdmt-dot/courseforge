@@ -42,6 +42,7 @@ const TavilyResponseSchema = z.object({
 export interface TavilyDeps {
   apiKey?: string;
   fetch?: FetchFn;
+  retryDelayMs?: number;
 }
 
 export async function searchTavily(opts: TavilySearchOptions, deps: TavilyDeps = {}): Promise<TavilyResult[]> {
@@ -54,6 +55,8 @@ export async function searchTavily(opts: TavilySearchOptions, deps: TavilyDeps =
     schema: TavilyResponseSchema,
     timeoutMs: TIMEOUT_MS[opts.depth],
     fetch: deps.fetch,
+    retries: 1,
+    retryDelayMs: deps.retryDelayMs,
     init: {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },

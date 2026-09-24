@@ -27,6 +27,15 @@ export interface FetchJsonOptions<T> {
   fetch?: FetchFn;
   /** Statuses that return null instead of throwing (e.g. 404 for "not found"). */
   nullOn?: number[];
+  /** Extra attempts after a timeout, network error, 429 or 5xx. Default 0 (YouTube counts quota per request). */
+  retries?: number;
+  retryDelayMs?: number;
+}
+
+/** Timeouts, network failures (no status), rate limits and server errors are worth one more try. */
+export function isTransient(err: unknown): boolean {
+  if (!(err instanceof ResearchError)) return false;
+  return err.status === undefined || err.status === 429 || err.status >= 500;
 }
 
 async function readBody(res: Response): Promise<unknown> {
@@ -38,8 +47,21 @@ async function readBody(res: Response): Promise<unknown> {
   }
 }
 
-/** GET/POST a JSON API with a timeout, typed errors and Zod-validated output. */
+/** GET/POST a JSON API with a timeout, typed errors, Zod-validated output and optional retries. */
 export async function fetchJson<T>(opts: FetchJsonOptions<T>): Promise<T | null> {
+  const retries = opts.retries ?? 0;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetchJsonOnce(opts);
+    } catch (err) {
+      if (attempt >= retries || !isTransient(err)) throw err;
+      console.warn(`${(err as Error).message}; retrying (${attempt + 1}/${retries})`);
+      await new Promise((r) => setTimeout(r, (opts.retryDelayMs ?? 1_000) * 2 ** attempt));
+    }
+  }
+}
+
+async function fetchJsonOnce<T>(opts: FetchJsonOptions<T>): Promise<T | null> {
   const doFetch = opts.fetch ?? fetch;
   let res: Response;
   try {

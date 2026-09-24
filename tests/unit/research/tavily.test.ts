@@ -47,6 +47,15 @@ describe("searchTavily", () => {
     expect(err).toMatchObject({ service: "tavily", status: 401 });
   });
 
+  it("retries a 502 once", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    let n = 0;
+    const fetch = mockFetch(() => (n++ === 0 ? jsonResponse({}, 502) : jsonResponse(tavilySearch)));
+    expect(await searchTavily({ query: "q", depth: "basic" }, { apiKey: "k", fetch, retryDelayMs: 0 })).toHaveLength(2);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    vi.restoreAllMocks();
+  });
+
   it("throws on an unexpected response shape", async () => {
     const fetch = mockFetch(() => jsonResponse({ answer: "no results key" }));
     await expect(searchTavily({ query: "q", depth: "basic" }, { apiKey: "k", fetch })).rejects.toThrow(

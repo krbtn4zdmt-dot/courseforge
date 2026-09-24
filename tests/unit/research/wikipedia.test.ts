@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ResearchError } from "@/lib/research/http";
 import { getWikipediaSummary, searchWikipedia, wikipediaUserAgent } from "@/lib/research/wikipedia";
@@ -34,9 +34,11 @@ describe("wikipedia", () => {
     expect(await getWikipediaSummary("Mercury", { fetch: mockFetch(() => jsonResponse(disambiguation)) })).toBeNull();
   });
 
-  it("throws on server errors", async () => {
+  it("retries a server error once, then throws", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetch = mockFetch(() => jsonResponse({}, 503));
-    await expect(getWikipediaSummary("X", { fetch })).rejects.toBeInstanceOf(ResearchError);
+    await expect(getWikipediaSummary("X", { fetch, retryDelayMs: 0 })).rejects.toBeInstanceOf(ResearchError);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it("searchWikipedia resolves a free-text query to a page, then summarizes it", async () => {

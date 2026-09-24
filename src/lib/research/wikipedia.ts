@@ -17,6 +17,7 @@ export interface WikipediaOptions {
   lang?: string;
   fetch?: FetchFn;
   contactEmail?: string;
+  retryDelayMs?: number;
 }
 
 const SummaryResponse = z.object({
@@ -50,6 +51,8 @@ export async function getWikipediaSummary(title: string, opts: WikipediaOptions 
     timeoutMs: TIMEOUT_MS,
     fetch: opts.fetch,
     init: { headers: headers(opts) },
+    retries: 1,
+    retryDelayMs: opts.retryDelayMs,
     nullOn: [404],
   });
   if (!data || data.type === "disambiguation") return null;
@@ -71,6 +74,8 @@ export async function findWikipediaTitle(query: string, opts: WikipediaOptions =
     timeoutMs: TIMEOUT_MS,
     fetch: opts.fetch,
     init: { headers: headers(opts) },
+    retries: 1,
+    retryDelayMs: opts.retryDelayMs,
   });
   return data?.pages[0]?.title ?? null;
 }

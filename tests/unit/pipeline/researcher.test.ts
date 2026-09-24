@@ -188,6 +188,15 @@ describe("research: deep mode", () => {
     expect(videos[0]!.excerpt).toBe("Chan · 10 min");
   });
 
+  it("keeps going without videos when YouTube fails outright", async () => {
+    const youtube = { searchVideos: vi.fn(async () => { throw new Error("[youtube] HTTP 400"); }) };
+    const { output, stats } = await research({ topic: "t", plan: knowledgePlan, mode: "deep" }, deps({ youtube }));
+    expect(stats.youtubeError).toBe("[youtube] HTTP 400");
+    expect(output.flatMap((o) => o.sources).some((s) => s.type === "video")).toBe(false);
+    expect(output[0]!.sources.length).toBeGreaterThan(0);
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("lessons will have no videos"));
+  });
+
   it("skips Wikipedia for skill topics", async () => {
     await research({ topic: "Excel", plan: excelPlan, mode: "deep" }, deps());
     expect(fakeWikipedia).not.toHaveBeenCalled();

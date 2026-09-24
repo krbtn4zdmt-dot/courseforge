@@ -48,6 +48,8 @@ export interface ResearchStats {
   wikipediaLookups: number;
   youtubeUnits: number;
   youtubeQuotaExhausted: boolean;
+  /** Set when the YouTube search failed outright (e.g. a bad key); lessons ship without videos. */
+  youtubeError: string | null;
   durationMs: number;
 }
 
@@ -121,6 +123,7 @@ export async function research(input: ResearchInput, deps: ResearchDeps = {}): P
     wikipediaLookups: 0,
     youtubeUnits: 0,
     youtubeQuotaExhausted: false,
+    youtubeError: null,
     durationMs: 0,
   };
   const candidates: Candidate[] = [];
@@ -198,12 +201,18 @@ export async function research(input: ResearchInput, deps: ResearchDeps = {}): P
       .filter((s) => s.importance <= 2)
       .map((s) => ({ subtopic: s.name, query: input.plan.searchQueries.find((q) => q.subtopic === s.name)!.queries[0]! }));
     const youtube = deps.youtube ?? createYouTubeClient({ cache: createFileCache() });
-    const yt = await youtube.searchVideos(videoJobs.map((j) => j.query), { language: input.language ?? "en" });
-    stats.youtubeUnits = yt.unitsUsed;
-    stats.youtubeQuotaExhausted = yt.quotaExhausted;
-    for (const job of videoJobs) {
-      const videos = (yt.videosByQuery[job.query] ?? []).map((v) => videoToSource(v, job.query, now));
-      videosBySubtopic.set(job.subtopic, videos);
+    try {
+      const yt = await youtube.searchVideos(videoJobs.map((j) => j.query), { language: input.language ?? "en" });
+      stats.youtubeUnits = yt.unitsUsed;
+      stats.youtubeQuotaExhausted = yt.quotaExhausted;
+      for (const job of videoJobs) {
+        const videos = (yt.videosByQuery[job.query] ?? []).map((v) => videoToSource(v, job.query, now));
+        videosBySubtopic.set(job.subtopic, videos);
+      }
+    } catch (err) {
+      // Videos are optional (0 per lesson is allowed); a YouTube failure shouldn't sink the course.
+      stats.youtubeError = err instanceof Error ? err.message : String(err);
+      console.warn(`[researcher] YouTube search failed; lessons will have no videos: ${stats.youtubeError}`);
     }
   }
 
