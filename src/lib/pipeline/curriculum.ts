@@ -17,6 +17,15 @@ import type { DayBudget } from "./timeBudget";
 // Checked in code: one retry with the problems listed, then estMinutes snapped to the slots.
 
 export const DAY_TOTAL_TOLERANCE = 0.1;
+const TOKENS_PER_SYLLABUS_ITEM = 200;
+const MIN_CURRICULUM_TOKENS = 16_000;
+const MAX_CURRICULUM_TOKENS = 64_000;
+
+/** Output budget for a syllabus: ~200 tokens per item plus headroom, 16k–64k. A 60-day, 4-lesson course needs ~50k. */
+export function curriculumMaxTokens(budget: readonly DayBudget[]): number {
+  const items = budget.reduce((n, d) => n + d.lessons.length + (d.reviewMinutes > 0 ? 1 : 0), 0);
+  return Math.min(MAX_CURRICULUM_TOKENS, Math.max(MIN_CURRICULUM_TOKENS, items * TOKENS_PER_SYLLABUS_ITEM + 4_000));
+}
 const SOURCES_PER_SUBTOPIC_IN_PROMPT = 3;
 
 export interface BudgetCheck {
@@ -141,7 +150,15 @@ export async function designCurriculum(input: DesignCurriculumInput, deps: Agent
   };
   const generate = (fix?: { previous: CurriculumOutput; problems: string[] }) => {
     const { system, prompt } = buildCurriculumPrompt({ ...promptInput, fix });
-    return call({ agent: "curriculum", model: "smart", system, prompt, schema: CurriculumOutputSchema, onUsage: deps.onUsage });
+    return call({
+      agent: "curriculum",
+      model: "smart",
+      system,
+      prompt,
+      schema: CurriculumOutputSchema,
+      maxTokens: curriculumMaxTokens(input.budget),
+      onUsage: deps.onUsage,
+    });
   };
   const check = (s: CurriculumOutput) => checkAgainstBudget(s, input.budget, input.intake.minutesPerDay, subtopicNames);
 

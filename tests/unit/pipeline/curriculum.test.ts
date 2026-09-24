@@ -149,3 +149,14 @@ describe("designCurriculum", () => {
     expect(out.remainingProblems).toHaveLength(1);
   });
 });
+
+describe("curriculumMaxTokens", () => {
+  it("scales with syllabus size between 16k and 64k", async () => {
+    const { curriculumMaxTokens } = await import("@/lib/pipeline/curriculum");
+    expect(curriculumMaxTokens(buildTimeBudget({ days: 7, minutesPerDay: 30, topicType: "skill" }))).toBe(16_000);
+    // 60 × 90 min: days 1–2 have 4 items, days 3–59 have 4 lessons + review, day 60 has 3 + review = 297 items
+    expect(curriculumMaxTokens(buildTimeBudget({ days: 60, minutesPerDay: 90, topicType: "skill" }))).toBe(63_400);
+    // 30 × 60 min: 3 + 3, then 27 days × 4, then 3 = 117 items
+    expect(curriculumMaxTokens(buildTimeBudget({ days: 30, minutesPerDay: 60, topicType: "skill" }))).toBe(27_400);
+  });
+});

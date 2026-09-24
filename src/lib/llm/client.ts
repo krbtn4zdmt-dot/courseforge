@@ -221,11 +221,15 @@ export function createLlmClient(deps: LlmClientDeps) {
 
 let defaultClient: ReturnType<typeof createLlmClient> | undefined;
 
-/** The single entry point for LLM calls. Retries are handled here, so the SDK's own are off. */
+/**
+ * The single entry point for LLM calls. Retries are handled here, so the SDK's own are off.
+ * Requests stream under the hood: the SDK refuses non-streaming calls whose max_tokens could
+ * take over 10 minutes (~21k tokens), and long syllabi need more than that.
+ */
 export function callJson<T>(opts: CallJsonOptions<T>): Promise<T> {
   if (!defaultClient) {
     const anthropic = new Anthropic({ maxRetries: 0 });
-    defaultClient = createLlmClient({ createMessage: (params) => anthropic.messages.create(params) });
+    defaultClient = createLlmClient({ createMessage: (params) => anthropic.messages.stream(params).finalMessage() });
   }
   return defaultClient.callJson(opts);
 }
