@@ -1,0 +1,6 @@
+{
+  "issues": [
+    { "claim": "Alexander was born in Athens", "problem": "contradicted", "suggestion": "Source [1] says he was born in Pella, the Macedonian capital." },
+    { "claim": "he became king at 18", "problem": "contradicted", "suggestion": "Source [1] gives 336 BCE, when he was 20." }
+  ]
+}

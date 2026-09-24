@@ -85,3 +85,23 @@ Format:
   Typecheck and lint are clean. `pnpm gen:syllabus "Excel for beginners" --days 7 --minutes 30 --level beginner --goal practical_skill` was run offline against a stubbed `fetch` (fake Claude and Tavily, not committed): the first curriculum missed a day-3 slot, the retry fit, all 7 days total 30 min with reviews from day 3 and a 21 + 9 final day, and it printed "planner 0.1s + light research 0.1s + curriculum 0.2s" and "LLM: 4 calls".
 - Leftovers: **acceptance items not yet met: "works end to end on a real topic" and the live Excel syllabus output with real timings.** Both need `ANTHROPIC_API_KEY`, `TAVILY_API_KEY`, `MODEL_SMART` and `MODEL_FAST` in this environment, plus network access to `api.tavily.com`. The first live run will also be the first time the API sees the structured-output schemas. Task 1.3's live smoke run is still pending too.
 - Decisions: four entries added to the ARCHITECTURE.md decisions log (slot budget before planning, the three kinds of curriculum problem, researcher merge and caps, failed-query policy).
+
+## 2026-09-24: Task 1.5: Lesson Writer, Examiner, Fact-Checker (in progress: live run pending; started with 1.3 and 1.4 still open, at the user's request)
+- Changed:
+  - `pipeline/lessonSources.ts`: `selectLessonSources` (grounded first, dedupe, max 6, excerpt-only flagged) and `selectLessonVideos` (0–2).
+  - `pipeline/lessonWriter.ts`: `writeLesson` with `lessonOutputSchemaFor` (citation range, practice-task rule).
+  - `pipeline/factChecker.ts`: `factCheckLesson` and `factCheckPassed` (any contradicted or outdated claim, or more than 2 unsupported, fails).
+  - `pipeline/examiner.ts`: `examineLesson` with `examinerSchemaFor` (at least one question per objective).
+  - `runCourse.ts`: `generateLesson` (write → fact-check → rewrite once → fact-check → examine; returns content, cited numbered sources, videos, quiz, and `factCheck { passed, issues, attempts, rewritten, unverifiedClaims }`) and `slotForItem`.
+  - `prompts/lessonWriter.ts` labels excerpt-only sources.
+  - `scripts/gen-lesson.ts` (`pnpm gen:lesson … --day 1 --lesson 1`, or `--from` a saved syllabus) prints the full lesson, sources, videos, key terms, practice, quiz with answers, the fact-check result, time and cost.
+  - `scripts/cli.ts` holds the shared argument parsing; `gen:syllabus --out` now includes the intake.
+  - New fixture `tests/fixtures/agents/factChecker.failing.json`.
+- Evidence: `pnpm test` 253/253 passed; the 21 new tests:
+  - lessonSources 3
+  - lesson agents 13: writer prompt numbering, out-of-range citation rejected, practice-task rule, disclaimer, no sources; pass rule for 0/2/3 unsupported and contradicted/outdated; fact-checker model; examiner minimum.
+  - generateLesson 5: happy path with cited numbered sources, 3–5 questions and a passed fact-check; the **failing fixture triggers one rewrite with the issues in the prompt and the quiz uses the rewrite**; still failing ships with `unverifiedClaims` and a log; review item; bad positions.
+
+  Typecheck and lint are clean. `pnpm gen:lesson "Excel for beginners" … --day 1 --lesson 1` was run offline against a stubbed `fetch` (fake Claude, Tavily and YouTube, not committed). The first draft's wrong shortcut was flagged as contradicted, rewritten once, and passed; it printed the lesson with [1][2] citations, 2 sources, 2 videos, key terms, a practice task, a 3-question quiz, "Fact-check: passed; rewritten once", and "LLM: 10 calls".
+- Leftovers: **acceptance item not yet met: the live Day 1 Lesson 1 for the Excel syllabus** (and citations mapping to real fetched sources). It needs the same keys and network access as 1.3/1.4. Fact-check pass rate and cost per lesson are unmeasured until then.
+- Decisions: three entries added to the ARCHITECTURE.md decisions log (examine after fact-check, lesson source selection and numbering, per-call schema refinements).

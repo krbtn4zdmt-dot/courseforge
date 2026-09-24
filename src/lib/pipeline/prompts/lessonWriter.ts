@@ -10,6 +10,8 @@ export interface LessonSource {
   title: string;
   url: string;
   grounding: string;
+  /** True when only a short excerpt is available (no full passages). */
+  excerptOnly?: boolean;
 }
 
 export interface LessonWriterPromptInput {
@@ -60,7 +62,7 @@ function formatOutline(syllabus: CurriculumOutput): string {
 
 function formatSources(sources: LessonSource[]): string {
   return sources
-    .map((s, i) => `[${i + 1}] ${s.title}\nURL: ${s.url}\nPassages:\n${s.grounding}`)
+    .map((s, i) => `[${i + 1}] ${s.title}\nURL: ${s.url}\n${s.excerptOnly ? "Excerpt only (cite for what it says, nothing more)" : "Passages"}:\n${s.grounding}`)
     .join("\n\n---\n\n");
 }
 

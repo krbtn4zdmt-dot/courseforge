@@ -43,7 +43,7 @@ Goal: prove the course quality before building any app. Output is a JSON file yo
 **Prompt:**
 > Do task 1.4. Implement planner.ts, researcher.ts, and curriculum.ts per docs/AGENTS.md using the LLM client. Enforce the time-total rule in code. Show me the syllabus output for "Excel for beginners, 7 days, 30 min/day".
 
-### [ ] 1.5 Lesson Writer, Examiner, Fact-Checker
+### [~] 1.5 Lesson Writer, Examiner, Fact-Checker
 **Acceptance:** generating one lesson produces markdown with numbered citations that map to real sources, 3–5 quiz questions, and a fact-check result; the rewrite-on-fail loop works (test with a fixture that fails).
 **Prompt:**
 > Do task 1.5. Implement lessonWriter.ts, examiner.ts, and factChecker.ts with the rewrite loop from docs/AGENTS.md. Generate Day 1 Lesson 1 for the Excel syllabus and show me the full output.
