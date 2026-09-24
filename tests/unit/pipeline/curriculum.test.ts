@@ -140,7 +140,17 @@ describe("designCurriculum", () => {
     await expect(result).rejects.toBeInstanceOf(CurriculumBudgetError);
   });
 
-  it("keeps unknown subtopics after the retry with a warning, without snapping", async () => {
+  it("maps an unknown subtopic to its closest planner subtopic after the retry", async () => {
+    const s = structuredClone(good());
+    s.days[0]!.lessons[0]!.subtopics = ["Pivot tables basics"];
+    const { result } = run(s, s);
+    const out = await result;
+    expect(out.syllabus.days[0]!.lessons[0]!.subtopics).toEqual(["PivotTables"]);
+    expect(out.remainingProblems).toEqual([]);
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('"Pivot tables basics" -> "PivotTables"'));
+  });
+
+  it("keeps unknown subtopics with no close match after the retry, with a warning, without snapping", async () => {
     const s = structuredClone(good());
     s.days[0]!.lessons[0]!.subtopics = ["Macros"];
     const { result } = run(s, s);
@@ -192,5 +202,19 @@ describe("normalizeSubtopics collisions", () => {
     expect(out.days[0]!.lessons[0]!.subtopics).toEqual(["C", "c++ ", "c"]);
     s.days[0]!.lessons[0]!.subtopics = ["pointers"];
     expect(normalizeSubtopics(s, ["C", "C++", "Pointers"]).days[0]!.lessons[0]!.subtopics).toEqual(["Pointers"]);
+  });
+});
+
+describe("repairUnknownSubtopics", () => {
+  it("maps only when exactly one planner subtopic shares the most words", async () => {
+    const { repairUnknownSubtopics } = await import("@/lib/pipeline/curriculum");
+    const s = structuredClone(good());
+    s.days[0]!.lessons[0]!.subtopics = ["Formatting data entry", "Charts overview", "Formulas and functions"];
+    const { syllabus: out, repairs } = repairUnknownSubtopics(s, names);
+    // "Formatting data entry" -> "Entering and formatting data" (shares "formatting", "data");
+    // "Charts overview" -> "Charts"; "Formulas and functions" ties "Formulas and cell references"
+    // with "Common functions (SUM, AVERAGE, IF)" (one word each), so it's left alone
+    expect(out.days[0]!.lessons[0]!.subtopics).toEqual(["Entering and formatting data", "Charts", "Formulas and functions"]);
+    expect(repairs).toHaveLength(2);
   });
 });

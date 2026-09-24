@@ -59,6 +59,8 @@ export interface LlmClientDeps {
 export const MAX_NETWORK_RETRIES = 3;
 const BASE_BACKOFF_MS = 1_000;
 const DEFAULT_MAX_TOKENS = 16_000;
+/** A retry after a max_tokens cut-off doubles the budget, up to this. */
+export const MAX_RETRY_TOKENS = 64_000;
 
 export function resolveModel(tier: ModelTier): string {
   const envVar = tier === "smart" ? "MODEL_SMART" : "MODEL_FAST";
@@ -157,9 +159,9 @@ export function createLlmClient(deps: LlmClientDeps) {
     let attempts = 0;
     let ok = false;
 
+    const maxTokens = opts.maxTokens ?? DEFAULT_MAX_TOKENS;
     const baseParams = {
       model,
-      max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
       system: opts.system,
       ...(opts.structuredOutput !== false && {
         output_config: {
@@ -168,8 +170,8 @@ export function createLlmClient(deps: LlmClientDeps) {
       }),
     };
 
-    async function attempt(messages: Anthropic.MessageParam[]) {
-      const message = await createWithRetry({ ...baseParams, messages }, opts.agent, () => {
+    async function attempt(messages: Anthropic.MessageParam[], max_tokens: number) {
+      const message = await createWithRetry({ ...baseParams, max_tokens, messages }, opts.agent, () => {
         attempts++;
       });
       usage.inputTokens += message.usage.input_tokens;
@@ -179,19 +181,26 @@ export function createLlmClient(deps: LlmClientDeps) {
       }
       const rawText = textOf(message);
       if (message.stop_reason === "max_tokens") {
-        return { rawText, result: { ok: false, issue: "Output was cut off at max_tokens." } as const };
+        return { rawText, truncated: true, result: { ok: false, issue: `Output was cut off at max_tokens (${max_tokens}).` } as const };
       }
-      return { rawText, result: parseJsonOutput(rawText, opts.schema) };
+      return { rawText, truncated: false, result: parseJsonOutput(rawText, opts.schema) };
     }
 
     try {
-      const first = await attempt([{ role: "user", content: opts.prompt }]);
+      const first = await attempt([{ role: "user", content: opts.prompt }], maxTokens);
       if (first.result.ok) {
         ok = true;
         return first.result.data;
       }
       console.warn(`[llm] ${opts.agent}: invalid output, retrying once. ${first.result.issue}`);
-      const second = await attempt(retryMessages(opts.prompt, first.rawText, first.result.issue));
+      // A cut-off reply would be cut off again with the same budget and the partial text as context:
+      // retry from scratch with double the budget instead.
+      const second = first.truncated
+        ? await attempt(
+            [{ role: "user", content: `${opts.prompt}\n\nYour previous response was cut off at the output limit before it finished. Respond again with complete JSON only, keeping it concise.` }],
+            Math.min(maxTokens * 2, Math.max(maxTokens, MAX_RETRY_TOKENS)),
+          )
+        : await attempt(retryMessages(opts.prompt, first.rawText, first.result.issue), maxTokens);
       if (second.result.ok) {
         ok = true;
         return second.result.data;

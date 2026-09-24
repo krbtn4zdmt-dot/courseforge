@@ -1,6 +1,7 @@
 import "server-only";
 
 import { callJson } from "@/lib/llm/client";
+import { termsFrom } from "@/lib/research/grounding";
 
 import type { AgentDeps } from "./planner";
 import { buildCurriculumPrompt, type SourceSummary } from "./prompts/curriculum";
@@ -114,6 +115,49 @@ export function normalizeSubtopics(syllabus: CurriculumOutput, subtopicNames: re
   };
 }
 
+/**
+ * After the retry, maps each still-unknown subtopic to the planner subtopic sharing the most words with it,
+ * when exactly one does ("Pivot tables basics" -> "PivotTables and pivot tables"). Returns the repairs made.
+ */
+export function repairUnknownSubtopics(
+  syllabus: CurriculumOutput,
+  subtopicNames: readonly string[],
+): { syllabus: CurriculumOutput; repairs: string[] } {
+  const known = new Set(subtopicNames);
+  const terms = new Map(subtopicNames.map((n) => [n, new Set(termsFrom(n))]));
+  const compact = new Map(subtopicNames.map((n) => [n, n.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")]));
+  // A word matches a name when it is one of its words or, for 4+ letters, part of a compound ("pivot" in "PivotTables").
+  const matches = (term: string, name: string) => terms.get(name)!.has(term) || (term.length >= 4 && compact.get(name)!.includes(term));
+  const repairs: string[] = [];
+  const bestMatch = (unknown: string): string | undefined => {
+    const wanted = termsFrom(unknown);
+    const scored = subtopicNames.map((n) => ({ n, shared: wanted.filter((t) => matches(t, n)).length }));
+    const top = Math.max(0, ...scored.map((x) => x.shared));
+    const winners = scored.filter((x) => x.shared === top);
+    return top > 0 && winners.length === 1 ? winners[0]!.n : undefined;
+  };
+  const out = {
+    ...syllabus,
+    days: syllabus.days.map((day) => ({
+      ...day,
+      lessons: day.lessons.map((item) => ({
+        ...item,
+        subtopics: [
+          ...new Set(
+            item.subtopics.map((s) => {
+              if (known.has(s)) return s;
+              const match = bestMatch(s);
+              if (match) repairs.push(`"${s}" -> "${match}"`);
+              return match ?? s;
+            }),
+          ),
+        ],
+      })),
+    })),
+  };
+  return { syllabus: out, repairs };
+}
+
 export function allProblems(check: BudgetCheck): string[] {
   return [...check.structure, ...check.minutes, ...check.subtopics];
 }
@@ -193,7 +237,9 @@ export async function designCurriculum(input: DesignCurriculumInput, deps: Agent
   if (!allProblems(firstCheck).length) return { syllabus: first, retried: false, snapped: false, remainingProblems: [] };
 
   console.warn(`[curriculum] syllabus doesn't fit the budget, retrying once:\n${allProblems(firstCheck).join("\n")}`);
-  const second = await generate({ previous: first, problems: allProblems(firstCheck) });
+  const retried = await generate({ previous: first, problems: allProblems(firstCheck) });
+  const { syllabus: second, repairs } = repairUnknownSubtopics(retried, subtopicNames);
+  if (repairs.length) console.warn(`[curriculum] mapped unknown subtopics to the closest planner subtopic: ${repairs.join(", ")}`);
   const secondCheck = check(second);
   if (secondCheck.structure.length) throw new CurriculumBudgetError(secondCheck.structure);
 

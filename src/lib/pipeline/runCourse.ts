@@ -109,6 +109,8 @@ export interface GeneratedLesson {
     /** Fact-check runs: 1, or 2 after a rewrite. */
     attempts: number;
     rewritten: boolean;
+    /** Set when the rewrite itself failed; the first draft shipped instead. */
+    rewriteError: string | null;
     /** Shown as the "some claims could not be verified" notice when the rewrite still fails. */
     unverifiedClaims: FactCheckIssue[];
   };
@@ -128,7 +130,12 @@ export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): 
   const spec = req.syllabus.days[req.dayNumber - 1]?.lessons[req.position];
   if (!spec) throw new Error(`No item ${req.position + 1} on day ${req.dayNumber} in the syllabus`);
   const slot = slotForItem(req.budget, req.dayNumber, req.position, req.plan);
-  const sources = selectLessonSources(req.research, spec.subtopics);
+  let sources = selectLessonSources(req.research, spec.subtopics);
+  if (!sources.length) {
+    // No research matched this item's subtopics: ground it on the course's best sources rather than fail it.
+    console.warn(`[lesson] no sources for "${spec.title}" (${spec.subtopics.join(", ")}); using the course's top sources`);
+    sources = selectLessonSources(req.research, req.research.map((r) => r.subtopic));
+  }
   const videos = spec.kind === "lesson" ? selectLessonVideos(req.research, spec.subtopics) : [];
 
   const writerInput: LessonWriterPromptInput = {
@@ -154,14 +161,22 @@ export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): 
   let content = await writeLesson(writerInput, deps);
   let result = await check(content);
   let attempts = 1;
+  let rewritten = false;
+  let rewriteError: string | null = null;
   if (!result.passed) {
     console.warn(`[lesson] "${spec.title}" failed fact-check (${result.issues.length} issues); rewriting once`);
-    content = await writeLesson({ ...writerInput, factCheckIssues: result.issues }, deps);
-    result = await check(content);
-    attempts = 2;
+    try {
+      const rewrite = await writeLesson({ ...writerInput, factCheckIssues: result.issues }, deps);
+      const recheck = await check(rewrite);
+      [content, result, attempts, rewritten] = [rewrite, recheck, 2, true];
+    } catch (err) {
+      // The first draft is usable: ship it with its known issues rather than lose the lesson.
+      rewriteError = err instanceof Error ? err.message : String(err);
+      console.warn(`[lesson] rewrite of "${spec.title}" failed (${rewriteError}); shipping the first draft with its notice`);
+    }
     if (!result.passed) {
       console.warn(
-        `[lesson] "${spec.title}" still fails fact-check after rewrite; shipping with an unverified-claims notice:\n` +
+        `[lesson] "${spec.title}" ships with an unverified-claims notice:\n` +
           result.issues.map((i) => `- [${i.problem}] ${i.claim}`).join("\n"),
       );
     }
@@ -182,7 +197,8 @@ export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): 
       passed: result.passed,
       issues: result.issues,
       attempts,
-      rewritten: attempts === 2,
+      rewritten,
+      rewriteError,
       unverifiedClaims: result.passed ? [] : result.issues,
     },
   };

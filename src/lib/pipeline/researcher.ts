@@ -3,7 +3,7 @@ import "server-only";
 import type { CallJsonOptions } from "@/lib/llm/client";
 import { createFileCache } from "@/lib/research/cache";
 import { makeExcerpt, termsFrom, trimGrounding } from "@/lib/research/grounding";
-import { rateRelevance } from "@/lib/research/relevance";
+import { DEFAULT_RELEVANCE, rateRelevance } from "@/lib/research/relevance";
 import { canonicalUrl, combineSourceScore, dedupeSources, domainCredibility, rankSources, scoreVideo } from "@/lib/research/scoring";
 import { searchTavily } from "@/lib/research/tavily";
 import { searchWikipedia } from "@/lib/research/wikipedia";
@@ -50,6 +50,8 @@ export interface ResearchStats {
   youtubeQuotaExhausted: boolean;
   /** Set when the YouTube search failed outright (e.g. a bad key); lessons ship without videos. */
   youtubeError: string | null;
+  /** Set when relevance rating failed; sources were scored with neutral relevance. */
+  relevanceError: string | null;
   durationMs: number;
 }
 
@@ -124,6 +126,7 @@ export async function research(input: ResearchInput, deps: ResearchDeps = {}): P
     youtubeUnits: 0,
     youtubeQuotaExhausted: false,
     youtubeError: null,
+    relevanceError: null,
     durationMs: 0,
   };
   const candidates: Candidate[] = [];
@@ -144,7 +147,11 @@ export async function research(input: ResearchInput, deps: ResearchDeps = {}): P
     }
   });
   if (jobs.length > 0 && stats.failedQueries.length === jobs.length) {
-    throw new Error(`[researcher] all ${jobs.length} ${input.mode} web queries failed`);
+    // Deep mode can fall back to the light results; with nothing to fall back on, there is no course.
+    if (!input.previous?.some((p) => p.sources.length)) {
+      throw new Error(`[researcher] all ${jobs.length} ${input.mode} web queries failed`);
+    }
+    console.warn(`[researcher] all ${jobs.length} deep web queries failed; falling back to the light-mode sources (excerpts only)`);
   }
   webResults.forEach((results, i) => {
     const { subtopic, query } = jobs[i]!;
@@ -184,13 +191,21 @@ export async function research(input: ResearchInput, deps: ResearchDeps = {}): P
 
   // Relevance and score
   if (candidates.length) {
-    const relevance = await (deps.rateRelevance ?? rateRelevance)({
-      topic: input.topic,
-      items: candidates.map((c) => ({ id: c.id, subtopic: c.subtopic, title: c.title, snippet: c.snippet })),
-      onUsage: deps.onUsage,
-    });
+    let relevance: Map<string, number>;
+    try {
+      relevance = await (deps.rateRelevance ?? rateRelevance)({
+        topic: input.topic,
+        items: candidates.map((c) => ({ id: c.id, subtopic: c.subtopic, title: c.title, snippet: c.snippet })),
+        onUsage: deps.onUsage,
+      });
+    } catch (err) {
+      // Relevance only ranks sources; without it, credibility still does.
+      stats.relevanceError = err instanceof Error ? err.message : String(err);
+      console.warn(`[researcher] relevance rating failed; scoring with ${DEFAULT_RELEVANCE} relevance: ${stats.relevanceError}`);
+      relevance = new Map(candidates.map((c) => [c.id, DEFAULT_RELEVANCE]));
+    }
     for (const c of candidates) {
-      c.score = combineSourceScore({ credibility: domainCredibility(c.url), relevance: relevance.get(c.id)! });
+      c.score = combineSourceScore({ credibility: domainCredibility(c.url), relevance: relevance.get(c.id) ?? DEFAULT_RELEVANCE });
     }
   }
 

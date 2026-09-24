@@ -98,7 +98,7 @@ describe("generateLesson", () => {
     expect(lesson.videos.map((v) => v.url)).toEqual(["https://www.youtube.com/watch?v=abc"]);
     expect(lesson.quiz.questions.length).toBeGreaterThanOrEqual(3);
     expect(lesson.quiz.questions.length).toBeLessThanOrEqual(5);
-    expect(lesson.factCheck).toEqual({ passed: true, issues: [], attempts: 1, rewritten: false, unverifiedClaims: [] });
+    expect(lesson.factCheck).toEqual({ passed: true, issues: [], attempts: 1, rewritten: false, rewriteError: null, unverifiedClaims: [] });
     expect(lesson.slot).toEqual({ estMinutes: 15, readingMinutes: 7, mediaMinutes: 2, practiceMinutes: 6 });
 
     // Grounded sources are numbered first; the fact-checker gets only the cited ones, with their passages
@@ -122,7 +122,7 @@ describe("generateLesson", () => {
     expect(calls(call)[4]!.prompt).toContain("<!-- rewrite -->");
     expect(calls(call)[4]!.prompt).not.toContain("<!-- first draft -->");
     expect(lesson.content.contentMd).toContain("<!-- rewrite -->");
-    expect(lesson.factCheck).toEqual({ passed: true, issues: [], attempts: 2, rewritten: true, unverifiedClaims: [] });
+    expect(lesson.factCheck).toEqual({ passed: true, issues: [], attempts: 2, rewritten: true, rewriteError: null, unverifiedClaims: [] });
   });
 
   it("ships with an unverified-claims notice when the rewrite still fails, and logs it", async () => {
@@ -136,7 +136,26 @@ describe("generateLesson", () => {
     expect(calls(call).filter((o) => o.agent === "lessonWriter")).toHaveLength(2); // only one rewrite
     expect(lesson.factCheck).toMatchObject({ passed: false, attempts: 2, rewritten: true });
     expect(lesson.factCheck.unverifiedClaims.map((i) => i.claim)).toEqual(["Alexander was born in Athens", "he became king at 18"]);
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("still fails fact-check after rewrite"));
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("ships with an unverified-claims notice"));
+  });
+
+  it("ships the first draft with its notice when the rewrite itself fails", async () => {
+    const call = llm({ lessonWriter: [withPractice(draft, "first draft")], factChecker: [failingCheck], examiner: [quiz] });
+    const lesson = await generateLesson(req, { callJson: call }); // the rewrite call finds no queued response and throws
+    expect(lesson.content.contentMd).toContain("<!-- first draft -->");
+    expect(lesson.factCheck).toMatchObject({ passed: false, attempts: 1, rewritten: false, rewriteError: "no mock response for lessonWriter" });
+    expect(lesson.factCheck.unverifiedClaims).toHaveLength(2);
+    expect(calls(call).at(-1)!.agent).toBe("examiner");
+  });
+
+  it("falls back to the course's top sources when none match the item's subtopics", async () => {
+    const call = llm({ lessonWriter: [withPractice(draft, "v1")], factChecker: [clean], examiner: [quiz] });
+    const orphan = structuredClone(syllabus);
+    orphan.days[0]!.lessons[0]!.subtopics = ["Something the research never covered"];
+    const lesson = await generateLesson({ ...req, syllabus: orphan }, { callJson: call });
+    expect(lesson.sources.map((s) => s.index)).toEqual([1, 2]);
+    expect(calls(call)[0]!.prompt).toContain("[1] Microsoft: Excel basics");
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("using the course's top sources"));
   });
 
   it("writes review items with the review block's minutes and no videos", async () => {

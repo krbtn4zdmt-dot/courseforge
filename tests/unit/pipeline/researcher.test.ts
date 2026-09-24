@@ -197,6 +197,35 @@ describe("research: deep mode", () => {
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("lessons will have no videos"));
   });
 
+  it("falls back to the light sources when every deep query fails", async () => {
+    const light = await research({ topic: "t", plan: knowledgePlan, mode: "light" }, deps());
+    const all = webQueriesFor(knowledgePlan, "deep").map((j) => j.query);
+    const { output, stats } = await research(
+      { topic: "t", plan: knowledgePlan, mode: "deep", previous: light.output },
+      deps({ searchTavily: fakeTavily({ fail: all }) as unknown as typeof searchTavily }),
+    );
+    expect(stats.failedQueries).toHaveLength(4);
+    const legacy = output[2]!.sources.filter((s) => s.type === "web");
+    expect(legacy.map((s) => s.url)).toEqual(light.output[2]!.sources.map((s) => s.url));
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("falling back to the light-mode sources"));
+  });
+
+  it("still throws when every deep query fails and there is nothing to fall back on", async () => {
+    const all = webQueriesFor(knowledgePlan, "deep").map((j) => j.query);
+    const d = deps({ searchTavily: fakeTavily({ fail: all }) as unknown as typeof searchTavily });
+    await expect(research({ topic: "t", plan: knowledgePlan, mode: "deep" }, d)).rejects.toThrow("all 4 deep web queries failed");
+  });
+
+  it("scores with neutral relevance when the relevance call fails", async () => {
+    const failing = vi.fn(async () => {
+      throw new Error("LLM output failed validation after retry");
+    }) as unknown as typeof rateRelevance;
+    const { output, stats } = await research({ topic: "t", plan: knowledgePlan, mode: "light" }, deps({ rateRelevance: failing }));
+    expect(stats.relevanceError).toMatch(/failed validation/);
+    // neutral credibility 0.5 and relevance 0.5
+    expect(output[0]!.sources.map((s) => s.score)).toEqual([0.5, 0.5, 0.5]);
+  });
+
   it("skips Wikipedia for skill topics", async () => {
     await research({ topic: "Excel", plan: excelPlan, mode: "deep" }, deps());
     expect(fakeWikipedia).not.toHaveBeenCalled();

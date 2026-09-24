@@ -140,13 +140,23 @@ describe("callJson: validation retry", () => {
     expect(correction).toMatch(/options:/);
   });
 
-  it("treats a max_tokens cut-off as invalid output", async () => {
+  it("retries a max_tokens cut-off from scratch with double the budget", async () => {
     const { client, createMessage } = setup([
       mockMessage('{"question": "What', { stop_reason: "max_tokens" }),
       mockMessage(validQuizJson),
     ]);
-    await client.callJson(opts());
-    expect(createMessage.mock.calls[1]![0].messages[2]!.content).toMatch(/cut off at max_tokens/);
+    await client.callJson(opts({ maxTokens: 8_000 }));
+    const [first, second] = createMessage.mock.calls.map(([p]) => p);
+    expect(first!.max_tokens).toBe(8_000);
+    expect(second!.max_tokens).toBe(16_000);
+    expect(second!.messages).toHaveLength(1);
+    expect(second!.messages[0]!.content).toMatch(/cut off at the output limit/);
+  });
+
+  it("caps the doubled budget at 64k", async () => {
+    const { client, createMessage } = setup([mockMessage("{", { stop_reason: "max_tokens" }), mockMessage(validQuizJson)]);
+    await client.callJson(opts({ maxTokens: 40_000 }));
+    expect(createMessage.mock.calls[1]![0].max_tokens).toBe(64_000);
   });
 
   it("appends the error to the prompt when the invalid reply was empty", async () => {
