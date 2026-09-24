@@ -16,7 +16,8 @@ describe("rateRelevance", () => {
       return { scores: ids.map((id) => ({ id, relevance: 0.8 })) };
     }) as unknown as typeof callJson;
 
-    const scores = await rateRelevance({ topic: "Alexander the Great", items: items(30), callJsonFn: call });
+    const { scores, failedBatches } = await rateRelevance({ topic: "Alexander the Great", items: items(30), callJsonFn: call });
+    expect(failedBatches).toEqual([]);
 
     expect(call).toHaveBeenCalledTimes(2);
     const first = vi.mocked(call).mock.calls[0]![0];
@@ -35,7 +36,7 @@ describe("rateRelevance", () => {
       ],
     })) as unknown as typeof callJson;
 
-    const scores = await rateRelevance({ topic: "t", items: items(2), callJsonFn: call });
+    const { scores } = await rateRelevance({ topic: "t", items: items(2), callJsonFn: call });
     expect(scores).toEqual(new Map([["s1", 0.9], ["s2", DEFAULT_RELEVANCE]]));
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("s2"));
   });
@@ -54,7 +55,8 @@ describe("rateRelevance", () => {
       return { scores: ids.map((id) => ({ id, relevance: 0.9 })) };
     }) as unknown as typeof callJson;
 
-    const scores = await rateRelevance({ topic: "t", items: items(60), callJsonFn: call }); // 3 batches
+    const { scores, failedBatches } = await rateRelevance({ topic: "t", items: items(60), callJsonFn: call }); // 3 batches
+    expect(failedBatches).toEqual(["validation failed twice"]);
     expect(peak).toBe(3);
     expect(scores.get("s1")).toBe(0.9);
     expect(scores.get("s26")).toBe(DEFAULT_RELEVANCE); // second batch (s26–s50) failed
@@ -65,7 +67,7 @@ describe("rateRelevance", () => {
 
   it("makes no call for an empty list", async () => {
     const call = vi.fn() as unknown as typeof callJson;
-    expect((await rateRelevance({ topic: "t", items: [], callJsonFn: call })).size).toBe(0);
+    expect((await rateRelevance({ topic: "t", items: [], callJsonFn: call })).scores.size).toBe(0);
     expect(call).not.toHaveBeenCalled();
   });
 });

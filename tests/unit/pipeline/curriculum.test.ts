@@ -140,13 +140,14 @@ describe("designCurriculum", () => {
     await expect(result).rejects.toBeInstanceOf(CurriculumBudgetError);
   });
 
-  it("maps an unknown subtopic to its closest planner subtopic after the retry", async () => {
+  it("maps an unknown subtopic to its closest planner subtopic without spending a retry", async () => {
     const s = structuredClone(good());
     s.days[0]!.lessons[0]!.subtopics = ["Pivot tables basics"];
-    const { result } = run(s, s);
+    const { call, result } = run(s);
     const out = await result;
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(out).toMatchObject({ retried: false, remainingProblems: [] });
     expect(out.syllabus.days[0]!.lessons[0]!.subtopics).toEqual(["PivotTables"]);
-    expect(out.remainingProblems).toEqual([]);
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('"Pivot tables basics" -> "PivotTables"'));
   });
 

@@ -116,7 +116,7 @@ export function normalizeSubtopics(syllabus: CurriculumOutput, subtopicNames: re
 }
 
 /**
- * After the retry, maps each still-unknown subtopic to the planner subtopic sharing the most words with it,
+ * Maps each unknown subtopic to the planner subtopic sharing the most words with it,
  * when exactly one does ("Pivot tables basics" -> "PivotTables and pivot tables"). Returns the repairs made.
  */
 export function repairUnknownSubtopics(
@@ -228,7 +228,10 @@ export async function designCurriculum(input: DesignCurriculumInput, deps: Agent
       maxTokens: curriculumMaxTokens(input.budget),
       onUsage: deps.onUsage,
     });
-    return normalizeSubtopics(syllabus, subtopicNames);
+    // Name repairs are free, so they happen before the budget check rather than costing a retry.
+    const { syllabus: repaired, repairs } = repairUnknownSubtopics(normalizeSubtopics(syllabus, subtopicNames), subtopicNames);
+    if (repairs.length) console.warn(`[curriculum] mapped unknown subtopics to the closest planner subtopic: ${repairs.join(", ")}`);
+    return repaired;
   };
   const check = (s: CurriculumOutput) => checkAgainstBudget(s, input.budget, input.intake.minutesPerDay, subtopicNames);
 
@@ -237,9 +240,7 @@ export async function designCurriculum(input: DesignCurriculumInput, deps: Agent
   if (!allProblems(firstCheck).length) return { syllabus: first, retried: false, snapped: false, remainingProblems: [] };
 
   console.warn(`[curriculum] syllabus doesn't fit the budget, retrying once:\n${allProblems(firstCheck).join("\n")}`);
-  const retried = await generate({ previous: first, problems: allProblems(firstCheck) });
-  const { syllabus: second, repairs } = repairUnknownSubtopics(retried, subtopicNames);
-  if (repairs.length) console.warn(`[curriculum] mapped unknown subtopics to the closest planner subtopic: ${repairs.join(", ")}`);
+  const second = await generate({ previous: first, problems: allProblems(firstCheck) });
   const secondCheck = check(second);
   if (secondCheck.structure.length) throw new CurriculumBudgetError(secondCheck.structure);
 

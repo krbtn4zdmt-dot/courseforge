@@ -21,9 +21,16 @@ export interface RateRelevanceOptions {
  * One MODEL_FAST call per batch of up to 25 sources, rating each 0–1 against its subtopic.
  * Batches run up to 3 at a time. Returns id → relevance. Items the model skips, or whose batch fails, get 0.5 and a warning.
  */
-export async function rateRelevance(opts: RateRelevanceOptions): Promise<Map<string, number>> {
+export interface RelevanceResult {
+  scores: Map<string, number>;
+  /** Error messages of failed batches; their items scored DEFAULT_RELEVANCE. */
+  failedBatches: string[];
+}
+
+export async function rateRelevance(opts: RateRelevanceOptions): Promise<RelevanceResult> {
   const call = opts.callJsonFn ?? callJson;
   const scores = new Map<string, number>();
+  const failedBatches: string[] = [];
 
   const batches: RelevanceItem[][] = [];
   for (let i = 0; i < opts.items.length; i += RELEVANCE_BATCH_SIZE) batches.push(opts.items.slice(i, i + RELEVANCE_BATCH_SIZE));
@@ -44,7 +51,9 @@ export async function rateRelevance(opts: RateRelevanceOptions): Promise<Map<str
       for (const s of result.scores) if (ids.has(s.id)) scores.set(s.id, s.relevance);
     } catch (err) {
       // One failed batch shouldn't sink research: its items fall back to the default below.
-      console.warn(`[relevance] a batch of ${batch.length} failed: ${err instanceof Error ? err.message : String(err)}`);
+      const message = err instanceof Error ? err.message : String(err);
+      failedBatches.push(message);
+      console.warn(`[relevance] a batch of ${batch.length} failed: ${message}`);
     }
   });
 
@@ -53,5 +62,5 @@ export async function rateRelevance(opts: RateRelevanceOptions): Promise<Map<str
     console.warn(`[relevance] no score for ${missing.length} source(s); using ${DEFAULT_RELEVANCE}: ${missing.map((m) => m.id).join(", ")}`);
     for (const m of missing) scores.set(m.id, DEFAULT_RELEVANCE);
   }
-  return scores;
+  return { scores, failedBatches };
 }

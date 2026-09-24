@@ -221,6 +221,20 @@ describe("callJson: network retries", () => {
     expect(logs[0]).toMatchObject({ ok: false, attempts: 4, inputTokens: 0 });
   });
 
+  it("retries an overloaded error sent mid-stream (no HTTP status)", async () => {
+    const midStream = new Anthropic.APIError(undefined, { type: "error", error: { type: "overloaded_error", message: "Overloaded" } }, undefined, new Headers(), "overloaded_error");
+    const { client, createMessage } = setup([midStream, mockMessage(validQuizJson)]);
+    await expect(client.callJson(opts())).resolves.toEqual(JSON.parse(validQuizJson));
+    expect(createMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a mid-stream invalid_request_error", async () => {
+    const midStream = new Anthropic.APIError(undefined, { type: "error", error: { type: "invalid_request_error" } }, undefined, new Headers(), "invalid_request_error");
+    const { client, createMessage } = setup([midStream, mockMessage(validQuizJson)]);
+    await expect(client.callJson(opts())).rejects.toBe(midStream);
+    expect(createMessage).toHaveBeenCalledTimes(1);
+  });
+
   it("does not retry a 400", async () => {
     const badRequest = new Anthropic.BadRequestError(400, undefined, "bad schema", new Headers());
     const { client, createMessage } = setup([badRequest, mockMessage(validQuizJson)]);

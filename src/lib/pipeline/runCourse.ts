@@ -1,5 +1,6 @@
 import "server-only";
 
+import { mapWithConcurrency } from "@/lib/concurrency";
 import type { LlmCallLog } from "@/lib/llm/cost";
 
 import { designCurriculum, type CurriculumResult } from "./curriculum";
@@ -9,7 +10,7 @@ import { selectLessonSources, selectLessonVideos } from "./lessonSources";
 import { writeLesson } from "./lessonWriter";
 import { planCourse, type AgentDeps } from "./planner";
 import type { LessonWriterPromptInput } from "./prompts/lessonWriter";
-import { mapWithConcurrency, research, type ResearchDeps, type ResearchStats } from "./researcher";
+import { research, type ResearchDeps, type ResearchStats } from "./researcher";
 import type {
   CompletedIntake,
   CurriculumOutput,
@@ -109,7 +110,7 @@ export interface GeneratedLesson {
     /** Fact-check runs: 1, or 2 after a rewrite. */
     attempts: number;
     rewritten: boolean;
-    /** Set when the rewrite itself failed; the first draft shipped instead. */
+    /** Set when the rewrite failed (the first draft shipped) or its re-check failed (the rewrite shipped unverified). */
     rewriteError: string | null;
     /** Shown as the "some claims could not be verified" notice when the rewrite still fails. */
     unverifiedClaims: FactCheckIssue[];
@@ -130,12 +131,9 @@ export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): 
   const spec = req.syllabus.days[req.dayNumber - 1]?.lessons[req.position];
   if (!spec) throw new Error(`No item ${req.position + 1} on day ${req.dayNumber} in the syllabus`);
   const slot = slotForItem(req.budget, req.dayNumber, req.position, req.plan);
-  let sources = selectLessonSources(req.research, spec.subtopics);
-  if (!sources.length) {
-    // No research matched this item's subtopics: ground it on the course's best sources rather than fail it.
-    console.warn(`[lesson] no sources for "${spec.title}" (${spec.subtopics.join(", ")}); using the course's top sources`);
-    sources = selectLessonSources(req.research, req.research.map((r) => r.subtopic));
-  }
+  // No course-wide fallback: sources about other subtopics can't support this lesson's claims, so an item
+  // with no matching research fails (visibly, via writeLesson) rather than cite unrelated material.
+  const sources = selectLessonSources(req.research, spec.subtopics);
   const videos = spec.kind === "lesson" ? selectLessonVideos(req.research, spec.subtopics) : [];
 
   const writerInput: LessonWriterPromptInput = {
@@ -165,14 +163,24 @@ export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): 
   let rewriteError: string | null = null;
   if (!result.passed) {
     console.warn(`[lesson] "${spec.title}" failed fact-check (${result.issues.length} issues); rewriting once`);
+    let rewrite: LessonWriterOutput | null = null;
     try {
-      const rewrite = await writeLesson({ ...writerInput, factCheckIssues: result.issues }, deps);
-      const recheck = await check(rewrite);
-      [content, result, attempts, rewritten] = [rewrite, recheck, 2, true];
+      rewrite = await writeLesson({ ...writerInput, factCheckIssues: result.issues }, deps);
     } catch (err) {
       // The first draft is usable: ship it with its known issues rather than lose the lesson.
       rewriteError = err instanceof Error ? err.message : String(err);
       console.warn(`[lesson] rewrite of "${spec.title}" failed (${rewriteError}); shipping the first draft with its notice`);
+    }
+    if (rewrite) {
+      [content, rewritten] = [rewrite, true];
+      try {
+        [result, attempts] = [await check(rewrite), 2];
+      } catch (err) {
+        // The rewrite targeted known issues, so keep it; it's unverified, so it keeps the first draft's
+        // issues as its notice rather than claiming a pass.
+        rewriteError = `re-check failed: ${err instanceof Error ? err.message : String(err)}`;
+        console.warn(`[lesson] re-check of the rewrite of "${spec.title}" failed; shipping the rewrite with the earlier issues as its notice`);
+      }
     }
     if (!result.passed) {
       console.warn(

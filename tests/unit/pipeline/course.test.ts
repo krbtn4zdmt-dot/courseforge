@@ -66,7 +66,7 @@ function mockRun(opts: { failTitle?: string; flagTitle?: string; plan?: PlannerO
   ) as unknown as typeof searchTavily;
   const relevance = vi.fn(async ({ items, onUsage }: Parameters<typeof rateRelevance>[0]) => {
     onUsage?.({ agent: "relevance", model: "claude-haiku-4-5", inputTokens: 500, outputTokens: 50, costUsd: 0.001, attempts: 1, durationMs: 1, ok: true });
-    return new Map(items.map((i) => [i.id, 0.8]));
+    return { scores: new Map(items.map((i) => [i.id, 0.8])), failedBatches: [] };
   }) as unknown as typeof rateRelevance;
   const youtube = {
     searchVideos: vi.fn(async (queries: string[]): Promise<YouTubeSearchResult> => ({

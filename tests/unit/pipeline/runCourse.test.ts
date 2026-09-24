@@ -27,7 +27,7 @@ describe("generateSyllabus", () => {
     }) as unknown as typeof searchTavily;
     const relevance = vi.fn(async ({ items }: Parameters<typeof rateRelevance>[0]) => {
       order.push("relevance");
-      return new Map(items.map((i) => [i.id, 0.8]));
+      return { scores: new Map(items.map((i) => [i.id, 0.8])), failedBatches: [] };
     }) as unknown as typeof rateRelevance;
     const research: ResearchDeps = { searchTavily: tavily, rateRelevance: relevance };
 
@@ -148,14 +148,20 @@ describe("generateLesson", () => {
     expect(calls(call).at(-1)!.agent).toBe("examiner");
   });
 
-  it("falls back to the course's top sources when none match the item's subtopics", async () => {
+  it("fails an item whose subtopics matched no research instead of citing unrelated sources", async () => {
     const call = llm({ lessonWriter: [withPractice(draft, "v1")], factChecker: [clean], examiner: [quiz] });
     const orphan = structuredClone(syllabus);
     orphan.days[0]!.lessons[0]!.subtopics = ["Something the research never covered"];
-    const lesson = await generateLesson({ ...req, syllabus: orphan }, { callJson: call });
-    expect(lesson.sources.map((s) => s.index)).toEqual([1, 2]);
-    expect(calls(call)[0]!.prompt).toContain("[1] Microsoft: Excel basics");
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("using the course's top sources"));
+    await expect(generateLesson({ ...req, syllabus: orphan }, { callJson: call })).rejects.toThrow(/no sources/);
+    expect(calls(call)).toEqual([]);
+  });
+
+  it("keeps a successful rewrite when its re-check fails, with the earlier issues as its notice", async () => {
+    const call = llm({ lessonWriter: [withPractice(draft, "first draft"), withPractice(draft, "rewrite")], factChecker: [failingCheck], examiner: [quiz] });
+    const lesson = await generateLesson(req, { callJson: call }); // the second fact-check has no queued response and throws
+    expect(lesson.content.contentMd).toContain("<!-- rewrite -->");
+    expect(lesson.factCheck).toMatchObject({ passed: false, attempts: 1, rewritten: true, rewriteError: "re-check failed: no mock response for factChecker" });
+    expect(lesson.factCheck.unverifiedClaims.map((i) => i.claim)).toEqual(["Alexander was born in Athens", "he became king at 18"]);
   });
 
   it("writes review items with the review block's minutes and no videos", async () => {

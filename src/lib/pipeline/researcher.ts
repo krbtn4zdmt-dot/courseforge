@@ -7,7 +7,7 @@ import { makeExcerpt, termsFrom, trimGrounding } from "@/lib/research/grounding"
 import { DEFAULT_RELEVANCE, rateRelevance } from "@/lib/research/relevance";
 import { canonicalUrl, combineSourceScore, dedupeSources, domainCredibility, rankSources, scoreVideo } from "@/lib/research/scoring";
 import { searchTavily } from "@/lib/research/tavily";
-import { searchWikipedia } from "@/lib/research/wikipedia";
+import { findWikipediaTitles, getWikipediaSummary, type WikipediaSummary } from "@/lib/research/wikipedia";
 import { createYouTubeClient, type YouTubeVideo } from "@/lib/research/youtube";
 
 import type { PlannerOutput, ResearcherOutput, Source } from "./schemas";
@@ -34,7 +34,8 @@ export interface ResearchInput {
 
 export interface ResearchDeps {
   searchTavily?: typeof searchTavily;
-  searchWikipedia?: typeof searchWikipedia;
+  findWikipediaTitles?: typeof findWikipediaTitles;
+  getWikipediaSummary?: typeof getWikipediaSummary;
   rateRelevance?: typeof rateRelevance;
   /** One YouTube client per course (it holds the search cap). */
   youtube?: Pick<ReturnType<typeof createYouTubeClient>, "searchVideos">;
@@ -51,7 +52,7 @@ export interface ResearchStats {
   youtubeQuotaExhausted: boolean;
   /** Set when the YouTube search failed outright (e.g. a bad key); lessons ship without videos. */
   youtubeError: string | null;
-  /** Set when relevance rating failed; sources were scored with neutral relevance. */
+  /** Set when relevance batches failed; their sources were scored with neutral relevance. */
   relevanceError: string | null;
   durationMs: number;
 }
@@ -62,8 +63,6 @@ interface Candidate extends Source {
   /** Snippet shown to the relevance rater. */
   snippet: string;
 }
-
-export { mapWithConcurrency };
 
 const DOCS_HOST = /^(docs|developer|learn|support)\./;
 
@@ -90,6 +89,46 @@ function videoToSource(video: YouTubeVideo, query: string, now: Date): Source {
     excerpt: `${video.channelTitle} · ${Math.round(video.durationSeconds / 60)} min`,
     grounding: null,
   };
+}
+
+const WIKIPEDIA_CANDIDATES = 3;
+
+/**
+ * One Wikipedia page per subtopic, searched as "<topic> <subtopic>". "<topic> Early life" and "<topic> Legacy"
+ * both rank the topic's main article first, so each subtopic takes its best-ranked page not already taken.
+ */
+async function wikipediaPages(
+  topic: string,
+  subtopics: string[],
+  deps: ResearchDeps,
+): Promise<{ subtopic: string; page: WikipediaSummary }[]> {
+  const findTitles = deps.findWikipediaTitles ?? findWikipediaTitles;
+  const summarize = deps.getWikipediaSummary ?? getWikipediaSummary;
+  const candidates = await mapWithConcurrency(subtopics, CONCURRENCY, async (subtopic) => {
+    try {
+      return await findTitles(`${topic} ${subtopic}`, { limit: WIKIPEDIA_CANDIDATES });
+    } catch (err) {
+      console.warn(`[researcher] Wikipedia search failed for "${subtopic}": ${err instanceof Error ? err.message : String(err)}`);
+      return [];
+    }
+  });
+  const taken = new Set<string>();
+  const picks = subtopics.flatMap((subtopic, i) => {
+    const title = candidates[i]!.find((t) => !taken.has(t));
+    if (!title) return [];
+    taken.add(title);
+    return [{ subtopic, title }];
+  });
+  const pages = await mapWithConcurrency(picks, CONCURRENCY, async ({ subtopic, title }) => {
+    try {
+      const page = await summarize(title);
+      return page ? { subtopic, page } : null;
+    } catch (err) {
+      console.warn(`[researcher] Wikipedia summary failed for "${title}": ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
+  });
+  return pages.filter((p): p is { subtopic: string; page: WikipediaSummary } => p !== null);
 }
 
 /** Deep-mode videos per subtopic. Failures other than quota are recorded in stats, never thrown: videos are optional. */
@@ -144,9 +183,6 @@ export async function research(input: ResearchInput, deps: ResearchDeps = {}): P
     if (URL.canParse(c.url)) candidates.push({ ...c, id: `c${candidates.length + 1}`, score: 0 });
   };
 
-  // YouTube: importance 1–2 subtopics, first query each. Runs alongside web, Wikipedia and relevance.
-  const videosPromise = deep ? searchVideosFor(input, deps, now, stats) : Promise.resolve(new Map<string, Source[]>());
-
   // Web search
   const jobs = webQueriesFor(input.plan, input.mode);
   stats.webQueries = jobs.length;
@@ -166,6 +202,10 @@ export async function research(input: ResearchInput, deps: ResearchDeps = {}): P
     }
     console.warn(`[researcher] all ${jobs.length} deep web queries failed; falling back to the light-mode sources (excerpts only)`);
   }
+  // YouTube: importance 1–2 subtopics, first query each. Started once the web search has worked (so a failed
+  // course spends no quota) and runs alongside Wikipedia and relevance.
+  const videosPromise = deep ? searchVideosFor(input, deps, now, stats) : Promise.resolve(new Map<string, Source[]>());
+
   webResults.forEach((results, i) => {
     const { subtopic, query } = jobs[i]!;
     for (const r of results ?? []) {
@@ -182,43 +222,25 @@ export async function research(input: ResearchInput, deps: ResearchDeps = {}): P
     }
   });
 
-  // Wikipedia: importance-1 subtopics of knowledge and hybrid topics
+  // Wikipedia: importance-1 subtopics of knowledge and hybrid topics, one distinct page each
   if (deep && input.plan.topicType !== "skill") {
     const wikiSubtopics = input.plan.subtopics.filter((s) => s.importance === 1).map((s) => s.name);
     stats.wikipediaLookups = wikiSubtopics.length;
-    const wiki = deps.searchWikipedia ?? searchWikipedia;
-    const summaries = await mapWithConcurrency(wikiSubtopics, CONCURRENCY, async (subtopic) => {
-      try {
-        // A bare subtopic ("Early life") matches unrelated pages; the topic anchors the search.
-        return await wiki(`${input.topic} ${subtopic}`);
-      } catch (err) {
-        console.warn(`[researcher] Wikipedia lookup failed for "${subtopic}": ${err instanceof Error ? err.message : String(err)}`);
-        return null;
-      }
-    });
-    summaries.forEach((s, i) => {
-      if (!s) return;
-      add({ subtopic: wikiSubtopics[i]!, url: s.url, title: `${s.title} (Wikipedia)`, type: "wiki", excerpt: makeExcerpt(s.extract), grounding: s.extract, snippet: s.extract });
-    });
+    for (const { subtopic, page } of await wikipediaPages(input.topic, wikiSubtopics, deps)) {
+      add({ subtopic, url: page.url, title: `${page.title} (Wikipedia)`, type: "wiki", excerpt: makeExcerpt(page.extract), grounding: page.extract, snippet: page.extract });
+    }
   }
 
-  // Relevance and score
+  // Relevance and score. Failed batches fall back to neutral relevance and are recorded.
   if (candidates.length) {
-    let relevance: Map<string, number>;
-    try {
-      relevance = await (deps.rateRelevance ?? rateRelevance)({
-        topic: input.topic,
-        items: candidates.map((c) => ({ id: c.id, subtopic: c.subtopic, title: c.title, snippet: c.snippet })),
-        onUsage: deps.onUsage,
-      });
-    } catch (err) {
-      // Relevance only ranks sources; without it, credibility still does.
-      stats.relevanceError = err instanceof Error ? err.message : String(err);
-      console.warn(`[researcher] relevance rating failed; scoring with ${DEFAULT_RELEVANCE} relevance: ${stats.relevanceError}`);
-      relevance = new Map(candidates.map((c) => [c.id, DEFAULT_RELEVANCE]));
-    }
+    const { scores, failedBatches } = await (deps.rateRelevance ?? rateRelevance)({
+      topic: input.topic,
+      items: candidates.map((c) => ({ id: c.id, subtopic: c.subtopic, title: c.title, snippet: c.snippet })),
+      onUsage: deps.onUsage,
+    });
+    if (failedBatches.length) stats.relevanceError = `${failedBatches.length} batch(es) failed: ${failedBatches[0]}`;
     for (const c of candidates) {
-      c.score = combineSourceScore({ credibility: domainCredibility(c.url), relevance: relevance.get(c.id) ?? DEFAULT_RELEVANCE });
+      c.score = combineSourceScore({ credibility: domainCredibility(c.url), relevance: scores.get(c.id) ?? DEFAULT_RELEVANCE });
     }
   }
 

@@ -69,12 +69,14 @@ export function resolveModel(tier: ModelTier): string {
   return model;
 }
 
+/** Error types the API can send mid-stream (as an SSE `error` event, so with no HTTP status) that are worth retrying. */
+const RETRYABLE_STREAM_ERRORS = new Set(["overloaded_error", "api_error", "rate_limit_error", "timeout_error"]);
+
 export function isRetryableError(err: unknown): boolean {
   if (err instanceof Anthropic.APIConnectionError) return true; // includes timeouts
-  if (err instanceof Anthropic.APIError && typeof err.status === "number") {
-    return err.status === 408 || err.status === 429 || err.status >= 500;
-  }
-  return false;
+  if (!(err instanceof Anthropic.APIError)) return false;
+  if (typeof err.status === "number") return err.status === 408 || err.status === 429 || err.status >= 500;
+  return RETRYABLE_STREAM_ERRORS.has(err.type ?? "");
 }
 
 /** Exponential backoff with jitter: ~1s, 2s, 4s. Honors a longer retry-after header. */

@@ -73,7 +73,7 @@ async function main() {
   }
   console.log(`Tavily: ${advanced.length} advanced + ${basic.length} basic results; Wikipedia: ${wiki ? wiki.title : "none"}`);
 
-  const relevance = await rateRelevance({
+  const { scores: relevance } = await rateRelevance({
     topic,
     items: candidates.map((c) => ({ id: c.id, subtopic: topic, title: c.title, snippet: c.snippet })),
     onUsage: (log) => llmLogs.push(log),

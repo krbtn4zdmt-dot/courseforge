@@ -64,12 +64,12 @@ export async function getWikipediaSummary(title: string, opts: WikipediaOptions 
   };
 }
 
-/** Best-matching page title for a free-text query, or null. Uses full-text search (search/title only matches title prefixes). */
-export async function findWikipediaTitle(query: string, opts: WikipediaOptions = {}): Promise<string | null> {
+/** Page titles matching a free-text query, best first. Full-text search (search/title only matches title prefixes). */
+export async function findWikipediaTitles(query: string, opts: WikipediaOptions & { limit?: number } = {}): Promise<string[]> {
   const lang = opts.lang ?? "en";
   const data = await fetchJson({
     service: "wikipedia",
-    url: `https://${lang}.wikipedia.org/w/rest.php/v1/search/page?${new URLSearchParams({ q: query, limit: "1" })}`,
+    url: `https://${lang}.wikipedia.org/w/rest.php/v1/search/page?${new URLSearchParams({ q: query, limit: String(opts.limit ?? 1) })}`,
     schema: TitleSearchResponse,
     timeoutMs: TIMEOUT_MS,
     fetch: opts.fetch,
@@ -77,7 +77,12 @@ export async function findWikipediaTitle(query: string, opts: WikipediaOptions =
     retries: 1,
     retryDelayMs: opts.retryDelayMs,
   });
-  return data?.pages[0]?.title ?? null;
+  return data?.pages.map((p) => p.title) ?? [];
+}
+
+/** Best-matching page title for a free-text query, or null. */
+export async function findWikipediaTitle(query: string, opts: WikipediaOptions = {}): Promise<string | null> {
+  return (await findWikipediaTitles(query, { ...opts, limit: 1 }))[0] ?? null;
 }
 
 /** Search then summarize: the usual entry point for a planner entity or subtopic name. */

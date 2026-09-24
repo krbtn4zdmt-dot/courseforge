@@ -11,6 +11,14 @@ describe("stripCode", () => {
   it("doesn't close a ``` fence with ~~~", () => {
     expect(stripCode(["```", "a[1]", "~~~", "b[2]", "```", "c [3]"].join("\n"))).toBe("c [3]");
   });
+
+
+  it("lets a longer fence contain a shorter one, and ignores fences with an info string as closers", () => {
+    const md = ["Intro [1].", "````markdown", "```js", "x[2]", "```", "# not a heading", "````", "After [3]."].join("\n");
+    expect(stripCode(md)).toBe(["Intro [1].", "After [3]."].join("\n"));
+    const md2 = ["```", "a[1]", "```python", "b[2]", "```", "c [3]"].join("\n");
+    expect(stripCode(md2)).toBe("c [3]");
+  });
 });
 
 describe("mapLinesOutsideFences", () => {

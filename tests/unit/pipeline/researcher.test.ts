@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  mapWithConcurrency,
   MAX_TEXT_SOURCES_PER_SUBTOPIC,
   MAX_VIDEOS_PER_SUBTOPIC,
   research,
@@ -12,7 +11,7 @@ import {
 import { ResearcherOutputSchema, type PlannerOutput } from "@/lib/pipeline/schemas";
 import type { rateRelevance } from "@/lib/research/relevance";
 import type { searchTavily, TavilyResult } from "@/lib/research/tavily";
-import type { searchWikipedia } from "@/lib/research/wikipedia";
+import type { findWikipediaTitles, getWikipediaSummary } from "@/lib/research/wikipedia";
 import type { YouTubeSearchResult, YouTubeVideo } from "@/lib/research/youtube";
 
 import { excelPlan } from "../../fixtures/agents/builders";
@@ -51,7 +50,10 @@ function fakeTavily(opts: { fail?: string[] } = {}) {
   });
 }
 
-const fakeRelevance = vi.fn(async ({ items }: Parameters<typeof rateRelevance>[0]) => new Map(items.map((it, i) => [it.id, i % 2 ? 0.6 : 0.9])));
+const fakeRelevance = vi.fn(async ({ items }: Parameters<typeof rateRelevance>[0]) => ({
+  scores: new Map(items.map((it, i) => [it.id, i % 2 ? 0.6 : 0.9])),
+  failedBatches: [] as string[],
+}));
 
 const video = (id: string, query: string, views: number): YouTubeVideo => ({
   videoId: id,
@@ -78,18 +80,20 @@ function fakeYouTube(videosPerQuery = 5) {
   };
 }
 
-const fakeWikipedia = vi.fn(async (query: string) => ({
-  title: query,
-  url: `https://en.wikipedia.org/wiki/${query.replace(/ /g, "_")}`,
-  extract: `${query} is covered by this encyclopedia article. It has several sentences.`,
+const fakeFindTitles = vi.fn(async (query: string) => [query, `${query} (other)`]) as unknown as typeof findWikipediaTitles;
+const fakeWikipedia = vi.fn(async (title: string) => ({
+  title,
+  url: `https://en.wikipedia.org/wiki/${title.replace(/ /g, "_")}`,
+  extract: `${title} is covered by this encyclopedia article. It has several sentences.`,
   description: null,
-})) as unknown as typeof searchWikipedia;
+})) as unknown as typeof getWikipediaSummary;
 
 function deps(extra: Partial<ResearchDeps> = {}): ResearchDeps {
   return {
     searchTavily: fakeTavily() as unknown as typeof searchTavily,
     rateRelevance: fakeRelevance as unknown as typeof rateRelevance,
-    searchWikipedia: fakeWikipedia,
+    findWikipediaTitles: fakeFindTitles,
+    getWikipediaSummary: fakeWikipedia,
     youtube: fakeYouTube(),
     now: () => now,
     ...extra,
@@ -165,8 +169,8 @@ describe("research: deep mode", () => {
     expect(tavily.mock.calls.map(([o]) => o.query)).toEqual(webQueriesFor(knowledgePlan, "deep").map((j) => j.query));
     for (const [opts] of tavily.mock.calls) expect(opts).toMatchObject({ depth: "advanced", includeRawContent: true });
 
-    // Wikipedia: importance-1 subtopics only
-    expect(vi.mocked(fakeWikipedia).mock.calls.map(([q]) => q)).toEqual(["Alexander the Great Early life"]);
+    // Wikipedia: importance-1 subtopics only, searched with the topic
+    expect(vi.mocked(fakeFindTitles).mock.calls.map(([q]) => q)).toEqual(["Alexander the Great Early life"]);
     // YouTube: importance 1–2 subtopics, first query each
     expect(d.youtube!.searchVideos).toHaveBeenCalledWith(["alexander early life", "alexander persia conquest"], { language: "en" });
 
@@ -181,22 +185,37 @@ describe("research: deep mode", () => {
     expect(ResearcherOutputSchema.safeParse(output).success).toBe(true);
   });
 
-  it("starts the YouTube search before any web query has finished", async () => {
+  it("starts YouTube after the web search, alongside Wikipedia and relevance", async () => {
     const order: string[] = [];
-    const slowTavily = vi.fn(async (o: Parameters<typeof searchTavily>[0]) => {
-      await new Promise((r) => setTimeout(r, 10));
-      order.push("tavily:done");
+    const tavily = vi.fn(async (o: Parameters<typeof searchTavily>[0]) => {
+      order.push("tavily");
       return fakeTavily()(o);
     }) as unknown as typeof searchTavily;
     const yt = fakeYouTube();
     const youtube = {
       searchVideos: vi.fn(async (q: string[]) => {
         order.push("youtube:start");
+        await new Promise((r) => setTimeout(r, 10));
+        order.push("youtube:done");
         return yt.searchVideos(q);
       }),
     };
-    await research({ topic: "t", plan: knowledgePlan, mode: "deep" }, deps({ searchTavily: slowTavily, youtube }));
-    expect(order[0]).toBe("youtube:start");
+    const relevance = vi.fn(async (o: Parameters<typeof rateRelevance>[0]) => {
+      order.push("relevance");
+      return fakeRelevance(o);
+    }) as unknown as typeof rateRelevance;
+    await research({ topic: "t", plan: knowledgePlan, mode: "deep" }, deps({ searchTavily: tavily, youtube, rateRelevance: relevance }));
+    expect(order.slice(0, 4)).toEqual(["tavily", "tavily", "tavily", "tavily"]);
+    expect(order.indexOf("youtube:start")).toBe(4);
+    expect(order.indexOf("relevance")).toBeLessThan(order.indexOf("youtube:done")); // relevance didn't wait for YouTube
+  });
+
+  it("spends no YouTube quota when every web query fails", async () => {
+    const all = webQueriesFor(knowledgePlan, "deep").map((j) => j.query);
+    const youtube = fakeYouTube();
+    const d = deps({ searchTavily: fakeTavily({ fail: all }) as unknown as typeof searchTavily, youtube });
+    await expect(research({ topic: "t", plan: knowledgePlan, mode: "deep" }, d)).rejects.toThrow();
+    expect(youtube.searchVideos).not.toHaveBeenCalled();
   });
 
   it("ranks videos by score and keeps the top 3", async () => {
@@ -234,10 +253,11 @@ describe("research: deep mode", () => {
     await expect(research({ topic: "t", plan: knowledgePlan, mode: "deep" }, d)).rejects.toThrow("all 4 deep web queries failed");
   });
 
-  it("scores with neutral relevance when the relevance call fails", async () => {
-    const failing = vi.fn(async () => {
-      throw new Error("LLM output failed validation after retry");
-    }) as unknown as typeof rateRelevance;
+  it("records failed relevance batches and scores with neutral relevance", async () => {
+    const failing = vi.fn(async ({ items }: Parameters<typeof rateRelevance>[0]) => ({
+      scores: new Map(items.map((i) => [i.id, 0.5])),
+      failedBatches: ["LLM output failed validation after retry"],
+    })) as unknown as typeof rateRelevance;
     const { output, stats } = await research({ topic: "t", plan: knowledgePlan, mode: "light" }, deps({ rateRelevance: failing }));
     expect(stats.relevanceError).toMatch(/failed validation/);
     // neutral credibility 0.5 and relevance 0.5
@@ -246,7 +266,22 @@ describe("research: deep mode", () => {
 
   it("skips Wikipedia for skill topics", async () => {
     await research({ topic: "Excel", plan: excelPlan, mode: "deep" }, deps());
-    expect(fakeWikipedia).not.toHaveBeenCalled();
+    expect(fakeFindTitles).not.toHaveBeenCalled();
+  });
+
+  it("gives each subtopic a different Wikipedia page", async () => {
+    const twoCore: PlannerOutput = {
+      ...knowledgePlan,
+      subtopics: knowledgePlan.subtopics.map((s) => ({ ...s, importance: s.name === "Legacy" ? 3 : 1 })),
+    };
+    // Both searches rank the main article first
+    const findTitles = vi.fn(async (q: string) =>
+      q.endsWith("Early life") ? ["Alexander the Great", "Early life of Alexander"] : ["Alexander the Great", "Wars of Alexander the Great"],
+    ) as unknown as typeof findWikipediaTitles;
+    const { output } = await research({ topic: "Alexander the Great", plan: twoCore, mode: "deep" }, deps({ findWikipediaTitles: findTitles }));
+    const wikiTitle = (i: number) => output[i]!.sources.find((s) => s.type === "wiki")?.title;
+    expect(wikiTitle(0)).toBe("Alexander the Great (Wikipedia)");
+    expect(wikiTitle(1)).toBe("Wars of Alexander the Great (Wikipedia)");
   });
 
   it("merges with light results, preferring the deep copy of the same page", async () => {
@@ -299,17 +334,4 @@ describe("helpers", () => {
     expect(sourceTypeFor("https://www.britannica.com/x")).toBe("web");
   });
 
-  it("mapWithConcurrency keeps order and never exceeds the limit", async () => {
-    let inFlight = 0;
-    let peak = 0;
-    const out = await mapWithConcurrency([5, 1, 4, 2, 3, 6, 7], 3, async (n) => {
-      inFlight++;
-      peak = Math.max(peak, inFlight);
-      await new Promise((r) => setTimeout(r, n));
-      inFlight--;
-      return n * 10;
-    });
-    expect(out).toEqual([50, 10, 40, 20, 30, 60, 70]);
-    expect(peak).toBe(3);
-  });
 });

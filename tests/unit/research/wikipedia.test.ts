@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { ResearchError } from "@/lib/research/http";
-import { getWikipediaSummary, searchWikipedia, wikipediaUserAgent } from "@/lib/research/wikipedia";
+import { findWikipediaTitles, getWikipediaSummary, searchWikipedia, wikipediaUserAgent } from "@/lib/research/wikipedia";
 
 import { jsonResponse, mockFetch } from "../../fixtures/research/mockFetch";
 import summary from "../../fixtures/research/wikipedia.summary.json";
@@ -58,6 +58,12 @@ describe("wikipedia", () => {
     const fetch = mockFetch(() => jsonResponse({ pages: [] }));
     expect(await searchWikipedia("zzzz", { fetch })).toBeNull();
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("findWikipediaTitles returns several titles, best first", async () => {
+    const fetch = mockFetch(() => jsonResponse({ pages: [{ key: "A", title: "A" }, { key: "B", title: "B" }] }));
+    expect(await findWikipediaTitles("q", { fetch, limit: 2 })).toEqual(["A", "B"]);
+    expect(new URL(String(fetch.mock.calls[0]![0])).searchParams.get("limit")).toBe("2");
   });
 
   it("user agent notes a missing contact", () => {
