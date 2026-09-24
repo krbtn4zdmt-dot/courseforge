@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { callJson } from "@/lib/llm/client";
 import type { LlmCallLog } from "@/lib/llm/cost";
-import { formatPercent, renderCourseMarkdown, slugify } from "@/lib/pipeline/courseOutput";
+import { demoteHeadings, formatPercent, renderCourseMarkdown, slugify } from "@/lib/pipeline/courseOutput";
 import { runCourse, summarizeLessons, summarizeUsage, type CourseResult, type LessonOutcome } from "@/lib/pipeline/runCourse";
 import type { CompletedIntake, ExaminerOutput, LessonWriterOutput, PlannerOutput } from "@/lib/pipeline/schemas";
 import { buildTimeBudget } from "@/lib/pipeline/timeBudget";
@@ -177,6 +177,13 @@ describe("slugify", () => {
 
   it("truncates without a trailing dash", () => {
     expect(slugify("a very long topic name that keeps going", 12)).toBe("a-very-long");
+  });
+});
+
+describe("demoteHeadings", () => {
+  it("demotes headings but not '#' lines inside code blocks", () => {
+    const md = ["## Setup", "```bash", "# install the package", "pip install x", "```", "# Top"].join("\n");
+    expect(demoteHeadings(md, 2)).toBe(["#### Setup", "```bash", "# install the package", "pip install x", "```", "### Top"].join("\n"));
   });
 });
 

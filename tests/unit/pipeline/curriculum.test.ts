@@ -181,3 +181,16 @@ describe("normalizeSubtopics", () => {
     expect(out.syllabus.days[0]!.lessons[0]!.subtopics).toEqual(["Workbook basics and navigation"]);
   });
 });
+
+describe("normalizeSubtopics collisions", () => {
+  it("keeps exact matches and never maps ambiguous keys", async () => {
+    const { normalizeSubtopics } = await import("@/lib/pipeline/curriculum");
+    const s = structuredClone(good());
+    s.days[0]!.lessons[0]!.subtopics = ["C", "c++ ", "c"];
+    const out = normalizeSubtopics(s, ["C", "C++", "Pointers"]);
+    // "C" is exact; "c++ " and "c" share the key "c" with both "C" and "C++", so they stay as written
+    expect(out.days[0]!.lessons[0]!.subtopics).toEqual(["C", "c++ ", "c"]);
+    s.days[0]!.lessons[0]!.subtopics = ["pointers"];
+    expect(normalizeSubtopics(s, ["C", "C++", "Pointers"]).days[0]!.lessons[0]!.subtopics).toEqual(["Pointers"]);
+  });
+});

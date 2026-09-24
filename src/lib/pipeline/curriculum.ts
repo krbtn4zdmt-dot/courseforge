@@ -97,15 +97,19 @@ const nameKey = (name: string) =>
  * ("workbook basics & navigation") back to the planner's exact name. Lesson sources are looked up by name.
  */
 export function normalizeSubtopics(syllabus: CurriculumOutput, subtopicNames: readonly string[]): CurriculumOutput {
-  const canonical = new Map(subtopicNames.map((n) => [nameKey(n), n]));
+  const exact = new Set(subtopicNames);
+  // Keys shared by several planner names ("C", "C++" and "C#" all become "c") are ambiguous: never map them.
+  const byKey = new Map<string, string | null>();
+  for (const name of subtopicNames) {
+    const key = nameKey(name);
+    byKey.set(key, byKey.has(key) ? null : name);
+  }
+  const resolve = (s: string) => (exact.has(s) ? s : (byKey.get(nameKey(s)) ?? s));
   return {
     ...syllabus,
     days: syllabus.days.map((day) => ({
       ...day,
-      lessons: day.lessons.map((item) => ({
-        ...item,
-        subtopics: [...new Set(item.subtopics.map((s) => canonical.get(nameKey(s)) ?? s))],
-      })),
+      lessons: day.lessons.map((item) => ({ ...item, subtopics: [...new Set(item.subtopics.map(resolve))] })),
     })),
   };
 }

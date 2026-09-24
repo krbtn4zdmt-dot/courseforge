@@ -101,6 +101,10 @@ describe("extractCitationIndexes", () => {
     expect(extractCitationIndexes("See [1](https://example.com) and [note] and [a1].")).toEqual([]);
   });
 
+  it("ignores bracketed numbers inside code", () => {
+    expect(extractCitationIndexes("Use `arr[0]` here [1].\n\n```python\nx = m[2, 3]\n```\nDone [2].")).toEqual([1, 2]);
+  });
+
   it("returns an empty list when nothing is cited", () => {
     expect(extractCitationIndexes("No citations here.")).toEqual([]);
   });

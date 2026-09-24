@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import type { DisclaimerDomain } from "@/lib/disclaimers";
+import { stripCode } from "@/lib/markdown";
 
 import type { TopicType } from "./timeBudget";
 
@@ -185,10 +186,10 @@ export type CurriculumOutput = z.infer<typeof CurriculumOutputSchema>;
 
 // ---------- 5. Lesson Writer ----------
 
-/** Sorted, unique source numbers cited inline as [1], [2] or [1, 3]. */
+/** Sorted, unique source numbers cited inline as [1], [2] or [1, 3]. Code (`arr[0]`, fenced blocks) is ignored. */
 export function extractCitationIndexes(markdown: string): number[] {
   const found = new Set<number>();
-  for (const match of markdown.matchAll(/\[(\d+(?:\s*,\s*\d+)*)\](?!\()/g)) {
+  for (const match of stripCode(markdown).matchAll(/\[(\d+(?:\s*,\s*\d+)*)\](?!\()/g)) {
     for (const n of match[1]!.split(",")) found.add(Number(n.trim()));
   }
   return [...found].sort((a, b) => a - b);

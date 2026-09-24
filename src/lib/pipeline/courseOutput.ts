@@ -2,6 +2,7 @@ import "server-only";
 
 import { DISCLAIMERS } from "@/lib/disclaimers";
 import { formatCostUsd } from "@/lib/llm/cost";
+import { mapLinesOutsideFences } from "@/lib/markdown";
 
 import type { CourseResult, GeneratedLesson, LessonOutcome } from "./runCourse";
 
@@ -22,9 +23,11 @@ export function formatPercent(rate: number | null): string {
   return rate === null ? "n/a" : `${Math.round(rate * 100)}%`;
 }
 
-/** Bumps markdown headings down so lesson content nests under the lesson heading. */
-function demoteHeadings(md: string, levels: number): string {
-  return md.replace(/^(#{1,6}) /gm, (_, hashes: string) => `${"#".repeat(Math.min(6, hashes.length + levels))} `);
+/** Bumps markdown headings down so lesson content nests under the lesson heading. Code blocks are left alone. */
+export function demoteHeadings(md: string, levels: number): string {
+  return mapLinesOutsideFences(md, (line) =>
+    line.replace(/^(#{1,6}) /, (_, hashes: string) => `${"#".repeat(Math.min(6, hashes.length + levels))} `),
+  );
 }
 
 function renderLesson(lesson: GeneratedLesson): string[] {

@@ -1,6 +1,7 @@
 // Syllabus CLI (task 1.4): pnpm gen:syllabus "Excel for beginners" --days 7 --minutes 30 --level beginner --goal practical_skill
 // Needs ANTHROPIC_API_KEY, TAVILY_API_KEY, MODEL_SMART, MODEL_FAST (from .env.local).
 import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 import { formatCostUsd, type LlmCallLog } from "@/lib/llm/cost";
 import { generateSyllabus, SYLLABUS_TARGET_MS } from "@/lib/pipeline/runCourse";
@@ -43,7 +44,7 @@ async function main() {
   console.log(`LLM: ${logs.length} calls, ${formatCostUsd(cost)}`);
 
   if (values.out) {
-    await mkdir("out", { recursive: true });
+    await mkdir(path.dirname(values.out), { recursive: true });
     await writeFile(values.out, JSON.stringify({ intake, ...result }, null, 2));
     console.log(`Wrote ${values.out}`);
   }
