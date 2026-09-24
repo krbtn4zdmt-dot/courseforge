@@ -16,6 +16,8 @@ export interface CurriculumPromptInput {
   budget: DayBudget[];
   /** Set when the learner asks for changes to an existing syllabus. */
   edit?: { previous: CurriculumOutput; feedback: string };
+  /** Set on the retry after a syllabus failed the time-budget check. */
+  fix?: { previous: CurriculumOutput; problems: string[] };
 }
 
 const SYSTEM = `You are the curriculum designer for CourseForge. You turn a course plan into a day-by-day syllabus that fits the learner's time budget exactly. You write titles and objectives, not lesson content.
@@ -84,6 +86,15 @@ export function buildCurriculumPrompt(input: CurriculumPromptInput): PromptPair 
     sections.push(
       section("Previous syllabus", json(edit.previous)),
       section("Learner's requested changes", edit.feedback),
+    );
+  }
+  if (input.fix) {
+    sections.push(
+      section("Your previous syllabus", json(input.fix.previous)),
+      section(
+        "Problems to fix (keep the content, correct these against the time budget slots)",
+        input.fix.problems.map((p) => `- ${p}`).join("\n"),
+      ),
     );
   }
   return { system: SYSTEM, prompt: userPrompt(...sections) };

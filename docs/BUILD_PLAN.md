@@ -38,7 +38,7 @@ Goal: prove the course quality before building any app. Output is a JSON file yo
 **Prompt:**
 > Do task 1.3. Build the three research clients and the source scoring module per docs/ARCHITECTURE.md. Use MODEL_FAST relevance scoring (no embeddings; see the embeddings note). Then run the smoke test and show me the output.
 
-### [ ] 1.4 Planner, Researcher, Curriculum Designer
+### [~] 1.4 Planner, Researcher, Curriculum Designer
 **Acceptance:** each agent function works end to end on a real topic; the researcher supports light and deep modes; curriculum days match the time budget's slots and totals are within ±10% (enforced in code with one retry, then snapped to the slots); light research + planner + curriculum time is printed.
 **Prompt:**
 > Do task 1.4. Implement planner.ts, researcher.ts, and curriculum.ts per docs/AGENTS.md using the LLM client. Enforce the time-total rule in code. Show me the syllabus output for "Excel for beginners, 7 days, 30 min/day".

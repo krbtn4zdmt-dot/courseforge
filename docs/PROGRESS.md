@@ -62,3 +62,26 @@ Format:
   Typecheck and lint are clean. The smoke script was run offline against a stubbed `fetch` (not committed): it printed the top sources, removed 5 of 9 as URL or text duplicates, filtered the 45-min videos, reported 202 YouTube units, and 0 units with 2 cached searches on a second run.
 - Leftovers: **acceptance item not yet met: the live smoke run** (top 5 sources for "Alexander the Great" plus YouTube units). It needs `TAVILY_API_KEY`, `YOUTUBE_API_KEY`, `ANTHROPIC_API_KEY`, `MODEL_FAST` and `CONTACT_EMAIL`, and in the cloud environment, network access to `api.tavily.com` and `*.wikipedia.org` (currently blocked by policy; `www.googleapis.com` and `api.anthropic.com` are reachable). The Tavily and YouTube response shapes are unconfirmed until then. Grounding trimming (~1,500 relevant words per source) is deferred to 1.4 as agreed. The content-farm list and weights need tuning after the quality review.
 - Decisions: five entries added to the ARCHITECTURE.md decisions log (scoring weights, file cache, YouTube client rules, relevance fallback, env loading).
+
+## 2026-09-24: Task 1.4: Planner, Researcher, Curriculum Designer (in progress: live runs pending; started with 1.3 still open, at the user's request)
+- Changed:
+  - `pipeline/planner.ts`: `planCourse`, plus `slotBudget` and a warning when subtopics far outnumber slots.
+  - `pipeline/researcher.ts`: `research({ topic, plan, mode, previous })`.
+    - light: the first query per subtopic, Tavily basic.
+    - deep: the remaining queries (advanced, raw content trimmed to grounding), Wikipedia for importance-1 knowledge/hybrid subtopics, YouTube for importance 1–2.
+    - concurrency 5, batched relevance, credibility scoring, dedupe, top 6 text sources and top 3 videos per subtopic, merge with light results, failed queries logged in stats, throws only if all fail.
+  - `research/grounding.ts`: `trimGrounding` (relevant paragraphs, ≤ 1,500 words), `makeExcerpt`, `termsFrom`.
+  - `pipeline/curriculum.ts`: `designCurriculum` with `checkAgainstBudget` (structure, minutes and subtopic problems), one retry with the problems and previous syllabus, then `snapToSlots` or `CurriculumBudgetError`.
+  - `prompts/curriculum.ts` gained a `fix` section.
+  - `pipeline/runCourse.ts`: `generateSyllabus` (planner, light research, budget rebuilt with the topic type, curriculum) with per-step timings.
+  - `scripts/gen-syllabus.ts` (`pnpm gen:syllabus`) prints the day-by-day syllabus, the retry/snap outcome, the time per step against the 20s target, and the LLM cost; `--out` writes JSON.
+- Evidence: `pnpm test` 232/232 passed; the 37 new tests:
+  - grounding 8
+  - planner 3
+  - researcher 12: query selection per mode, light vs deep calls, scores, a partial failure, all failing, grounding trimmed, Wikipedia/YouTube filters, top-3 videos, skill topics skip Wikipedia, deep replaces light for the same URL, the per-subtopic cap, concurrency limit and order
+  - curriculum 13: fits, slot mismatch, total outside ±10%, structural problems, unknown subtopics, snapping, first-try pass, fixed on retry, snapped after retry, structure error thrown, unknown subtopics warned
+  - runCourse 1: step order and timings
+
+  Typecheck and lint are clean. `pnpm gen:syllabus "Excel for beginners" --days 7 --minutes 30 --level beginner --goal practical_skill` was run offline against a stubbed `fetch` (fake Claude and Tavily, not committed): the first curriculum missed a day-3 slot, the retry fit, all 7 days total 30 min with reviews from day 3 and a 21 + 9 final day, and it printed "planner 0.1s + light research 0.1s + curriculum 0.2s" and "LLM: 4 calls".
+- Leftovers: **acceptance items not yet met: "works end to end on a real topic" and the live Excel syllabus output with real timings.** Both need `ANTHROPIC_API_KEY`, `TAVILY_API_KEY`, `MODEL_SMART` and `MODEL_FAST` in this environment, plus network access to `api.tavily.com`. The first live run will also be the first time the API sees the structured-output schemas. Task 1.3's live smoke run is still pending too.
+- Decisions: four entries added to the ARCHITECTURE.md decisions log (slot budget before planning, the three kinds of curriculum problem, researcher merge and caps, failed-query policy).
