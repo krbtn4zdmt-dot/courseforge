@@ -42,7 +42,7 @@ describe("wikipedia", () => {
   it("searchWikipedia resolves a free-text query to a page, then summarizes it", async () => {
     const fetch = mockFetch(
       (url) =>
-        url.pathname.endsWith("/search/title")
+        url.pathname.endsWith("/search/page")
           ? jsonResponse({ pages: [{ key: "Alexander_the_Great", title: "Alexander the Great" }] })
           : undefined,
       (url) => (url.pathname.includes("/page/summary/") ? jsonResponse(summary) : undefined),

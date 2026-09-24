@@ -166,7 +166,8 @@ export async function research(input: ResearchInput, deps: ResearchDeps = {}): P
     const wiki = deps.searchWikipedia ?? searchWikipedia;
     const summaries = await mapWithConcurrency(wikiSubtopics, CONCURRENCY, async (subtopic) => {
       try {
-        return await wiki(subtopic);
+        // A bare subtopic ("Early life") matches unrelated pages; the topic anchors the search.
+        return await wiki(`${input.topic} ${subtopic}`);
       } catch (err) {
         console.warn(`[researcher] Wikipedia lookup failed for "${subtopic}": ${err instanceof Error ? err.message : String(err)}`);
         return null;

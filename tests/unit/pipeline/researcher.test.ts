@@ -166,12 +166,13 @@ describe("research: deep mode", () => {
     for (const [opts] of tavily.mock.calls) expect(opts).toMatchObject({ depth: "advanced", includeRawContent: true });
 
     // Wikipedia: importance-1 subtopics only
-    expect(vi.mocked(fakeWikipedia).mock.calls.map(([q]) => q)).toEqual(["Early life"]);
+    expect(vi.mocked(fakeWikipedia).mock.calls.map(([q]) => q)).toEqual(["Alexander the Great Early life"]);
     // YouTube: importance 1–2 subtopics, first query each
     expect(d.youtube!.searchVideos).toHaveBeenCalledWith(["alexander early life", "alexander persia conquest"], { language: "en" });
 
     const early = output[0]!.sources;
     expect(early.filter((s) => s.type === "wiki")).toHaveLength(1);
+    expect(early.find((s) => s.type === "wiki")!.title).toBe("Alexander the Great Early life (Wikipedia)");
     expect(early.find((s) => s.type === "web")!.grounding).toMatch(/^Intro about alexander aristotle tutor/);
     expect(early.find((s) => s.type === "web")!.grounding).not.toContain("cookie");
     expect(early.filter((s) => s.type === "video")).toHaveLength(MAX_VIDEOS_PER_SUBTOPIC);

@@ -61,12 +61,12 @@ export async function getWikipediaSummary(title: string, opts: WikipediaOptions 
   };
 }
 
-/** Best-matching page title for a free-text query, or null. */
+/** Best-matching page title for a free-text query, or null. Uses full-text search (search/title only matches title prefixes). */
 export async function findWikipediaTitle(query: string, opts: WikipediaOptions = {}): Promise<string | null> {
   const lang = opts.lang ?? "en";
   const data = await fetchJson({
     service: "wikipedia",
-    url: `https://${lang}.wikipedia.org/w/rest.php/v1/search/title?${new URLSearchParams({ q: query, limit: "1" })}`,
+    url: `https://${lang}.wikipedia.org/w/rest.php/v1/search/page?${new URLSearchParams({ q: query, limit: "1" })}`,
     schema: TitleSearchResponse,
     timeoutMs: TIMEOUT_MS,
     fetch: opts.fetch,
