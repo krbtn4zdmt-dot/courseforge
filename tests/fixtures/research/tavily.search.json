@@ -1,0 +1,21 @@
+{
+  "query": "Alexander the Great",
+  "response_time": 1.42,
+  "images": [],
+  "results": [
+    {
+      "url": "https://www.britannica.com/biography/Alexander-the-Great",
+      "title": "Alexander the Great | Biography, Empire, & Facts | Britannica",
+      "content": "Alexander the Great was king of Macedonia from 336 to 323 BCE and overthrew the Persian Empire.",
+      "raw_content": "Alexander the Great, also called Alexander III, was king of Macedonia (336–323 BCE)...",
+      "score": 0.91,
+      "published_date": null
+    },
+    {
+      "url": "https://www.worldhistory.org/Alexander_the_Great/",
+      "title": "Alexander the Great - World History Encyclopedia",
+      "content": "Alexander the Great was the son of Philip II and Queen Olympias.",
+      "score": 0.87
+    }
+  ]
+}

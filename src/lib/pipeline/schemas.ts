@@ -281,3 +281,10 @@ export type FactCheckIssue = z.infer<typeof FactCheckIssueSchema>;
 
 export const FactCheckOutputSchema = z.object({ issues: z.array(FactCheckIssueSchema) });
 export type FactCheckOutput = z.infer<typeof FactCheckOutputSchema>;
+
+// ---------- Relevance rating (researcher, MODEL_FAST) ----------
+
+export const RelevanceOutputSchema = z.object({
+  scores: z.array(z.object({ id: z.string().min(1), relevance: z.number().min(0).max(1) })),
+});
+export type RelevanceOutput = z.infer<typeof RelevanceOutputSchema>;

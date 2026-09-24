@@ -1,0 +1,10 @@
+{
+  "type": "standard",
+  "title": "Alexander the Great",
+  "description": "King of Macedon from 336 to 323 BC",
+  "extract": "Alexander III of Macedon, most commonly known as Alexander the Great, was a king of the ancient Greek kingdom of Macedon.",
+  "content_urls": {
+    "desktop": { "page": "https://en.wikipedia.org/wiki/Alexander_the_Great" },
+    "mobile": { "page": "https://en.m.wikipedia.org/wiki/Alexander_the_Great" }
+  }
+}

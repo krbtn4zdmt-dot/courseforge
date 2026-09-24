@@ -42,3 +42,23 @@ Format:
 - Evidence: `pnpm test` 130/130 passed. `schemas.test.ts` (54): each valid fixture parses, each invalid variant fails at its expected path, every schema converts via the SDK's `zodOutputFormat` to a closed object schema, plus refusal and in-progress intake, empty fact-check, researcher sources and citation extraction. `prompts.test.ts` (30): every prompt names all output keys, ends with "Respond with JSON only." and has an input-independent system prompt; "by Friday" on a Wednesday gives 3 days; time-zone weekday; slot formatting; edit, rewrite and disclaimer sections appear only when relevant; word range from reading minutes; question count. Typecheck and lint are clean.
 - Leftovers: the API hasn't seen these schemas yet; the first live call (task 1.4) confirms structured outputs accept them. Prompt wording is a first draft for the Phase 1 quality review. The relevance-scoring prompt comes with task 1.3. Note for 1.4: the planner decides `topicType`, so compute the budget once for slot counts (they don't depend on topic type) and recompute the per-lesson splits after planning.
 - Decisions: five entries added to the ARCHITECTURE.md decisions log (superRefine vs agent-code rules, fixed system prompts, disclaimer text, 4 options / 3–8 key terms, intake date table).
+
+## 2026-09-24: Task 1.3: Research clients (in progress: live smoke run pending)
+- Changed: `src/lib/research/`:
+  - `http.ts`: `fetchJson` with timeout, `ResearchError` (service, status, body) and Zod-validated responses.
+  - `tavily.ts`: `searchTavily`, basic 15s / advanced 30s, optional raw content.
+  - `youtube.ts`: `createYouTubeClient`, one per course. `search.list` capped at 8 live searches (cache hits don't count), `videos.list`/`channels.list` batched 50 ids, 3–25 min filter, unit tracking, quota exhausted returns no videos plus a log; `parseIsoDuration`.
+  - `wikipedia.ts`: summary (null on 404 or disambiguation) and title search, with a Wikimedia User-Agent from `CONTACT_EMAIL`.
+  - `cache.ts`: memory and file caches, 7-day TTL for YouTube.
+  - `scoring.ts`: domain credibility, recency, combined score, video score, `canonicalUrl`, 5-word shingles, Jaccard, `dedupeSources` (> 0.8), `rankSources`.
+  - `relevance.ts`: batched MODEL_FAST rating, with `prompts/relevance.ts` and `RelevanceOutputSchema`.
+
+  Also `scripts/research-smoke.ts` (`pnpm research:smoke "<topic>"`). `gen:course` and `research:smoke` load `.env.local` via `--env-file-if-exists`. `.env.example` gained `CONTACT_EMAIL`; `.gitignore` gained `.cache/`.
+- Evidence: `pnpm test` 195/195 passed; the 65 new tests are in `tests/unit/research/`:
+  - youtube 14: request params, duration filter, hidden subscribers, 8-search cap across calls, cache hit not counted, 7-day expiry, 50-id batching and unit math, quota exhausted mid-run and on the first search, bad key throws, missing key.
+  - scoring 23.
+  - tavily 6, wikipedia 7, http 5, relevance 3, cache 3.
+
+  Typecheck and lint are clean. The smoke script was run offline against a stubbed `fetch` (not committed): it printed the top sources, removed 5 of 9 as URL or text duplicates, filtered the 45-min videos, reported 202 YouTube units, and 0 units with 2 cached searches on a second run.
+- Leftovers: **acceptance item not yet met: the live smoke run** (top 5 sources for "Alexander the Great" plus YouTube units). It needs `TAVILY_API_KEY`, `YOUTUBE_API_KEY`, `ANTHROPIC_API_KEY`, `MODEL_FAST` and `CONTACT_EMAIL`, and in the cloud environment, network access to `api.tavily.com` and `*.wikipedia.org` (currently blocked by policy; `www.googleapis.com` and `api.anthropic.com` are reachable). The Tavily and YouTube response shapes are unconfirmed until then. Grounding trimming (~1,500 relevant words per source) is deferred to 1.4 as agreed. The content-farm list and weights need tuning after the quality review.
+- Decisions: five entries added to the ARCHITECTURE.md decisions log (scoring weights, file cache, YouTube client rules, relevance fallback, env loading).

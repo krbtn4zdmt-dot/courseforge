@@ -33,7 +33,7 @@ Goal: prove the course quality before building any app. Output is a JSON file yo
 **Prompt:**
 > Do task 1.2. Create Zod schemas for every agent output in docs/AGENTS.md and write the prompt templates, following the rules listed for each agent. Put example valid/invalid outputs in tests/fixtures.
 
-### [ ] 1.3 Research clients
+### [~] 1.3 Research clients
 **Acceptance:** `tavily.ts`, `youtube.ts`, `wikipedia.ts` each export a typed search function with timeouts and error handling; YouTube stays within 8 searches per course, caches by query, and returns no videos (not an error) when quota runs out; `scoring.ts` implements the scoring and shingle-dedupe rules with unit tests; a smoke script prints top 5 scored sources for "Alexander the Great" and the YouTube quota units it used.
 **Prompt:**
 > Do task 1.3. Build the three research clients and the source scoring module per docs/ARCHITECTURE.md. Use MODEL_FAST relevance scoring (no embeddings; see the embeddings note). Then run the smoke test and show me the output.
