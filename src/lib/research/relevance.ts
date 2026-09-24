@@ -1,11 +1,13 @@
 import "server-only";
 
 import { callJson } from "@/lib/llm/client";
+import { mapWithConcurrency } from "@/lib/concurrency";
 import { buildRelevancePrompt, type RelevanceItem } from "@/lib/pipeline/prompts/relevance";
 import { RelevanceOutputSchema } from "@/lib/pipeline/schemas";
 
 export const RELEVANCE_BATCH_SIZE = 25;
 export const DEFAULT_RELEVANCE = 0.5;
+const BATCH_CONCURRENCY = 3;
 
 export interface RateRelevanceOptions {
   topic: string;
@@ -17,27 +19,34 @@ export interface RateRelevanceOptions {
 
 /**
  * One MODEL_FAST call per batch of up to 25 sources, rating each 0–1 against its subtopic.
- * Returns id → relevance. Items the model skips get 0.5 and a warning.
+ * Batches run up to 3 at a time. Returns id → relevance. Items the model skips, or whose batch fails, get 0.5 and a warning.
  */
 export async function rateRelevance(opts: RateRelevanceOptions): Promise<Map<string, number>> {
   const call = opts.callJsonFn ?? callJson;
   const scores = new Map<string, number>();
 
-  for (let i = 0; i < opts.items.length; i += RELEVANCE_BATCH_SIZE) {
-    const batch = opts.items.slice(i, i + RELEVANCE_BATCH_SIZE);
+  const batches: RelevanceItem[][] = [];
+  for (let i = 0; i < opts.items.length; i += RELEVANCE_BATCH_SIZE) batches.push(opts.items.slice(i, i + RELEVANCE_BATCH_SIZE));
+
+  await mapWithConcurrency(batches, BATCH_CONCURRENCY, async (batch) => {
     const { system, prompt } = buildRelevancePrompt({ topic: opts.topic, items: batch });
-    const result = await call({
-      agent: "relevance",
-      model: "fast",
-      system,
-      prompt,
-      schema: RelevanceOutputSchema,
-      maxTokens: 2_000,
-      onUsage: opts.onUsage,
-    });
-    const ids = new Set(batch.map((b) => b.id));
-    for (const s of result.scores) if (ids.has(s.id)) scores.set(s.id, s.relevance);
-  }
+    try {
+      const result = await call({
+        agent: "relevance",
+        model: "fast",
+        system,
+        prompt,
+        schema: RelevanceOutputSchema,
+        maxTokens: 2_000,
+        onUsage: opts.onUsage,
+      });
+      const ids = new Set(batch.map((b) => b.id));
+      for (const s of result.scores) if (ids.has(s.id)) scores.set(s.id, s.relevance);
+    } catch (err) {
+      // One failed batch shouldn't sink research: its items fall back to the default below.
+      console.warn(`[relevance] a batch of ${batch.length} failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  });
 
   const missing = opts.items.filter((i) => !scores.has(i.id));
   if (missing.length) {

@@ -181,6 +181,24 @@ describe("research: deep mode", () => {
     expect(ResearcherOutputSchema.safeParse(output).success).toBe(true);
   });
 
+  it("starts the YouTube search before any web query has finished", async () => {
+    const order: string[] = [];
+    const slowTavily = vi.fn(async (o: Parameters<typeof searchTavily>[0]) => {
+      await new Promise((r) => setTimeout(r, 10));
+      order.push("tavily:done");
+      return fakeTavily()(o);
+    }) as unknown as typeof searchTavily;
+    const yt = fakeYouTube();
+    const youtube = {
+      searchVideos: vi.fn(async (q: string[]) => {
+        order.push("youtube:start");
+        return yt.searchVideos(q);
+      }),
+    };
+    await research({ topic: "t", plan: knowledgePlan, mode: "deep" }, deps({ searchTavily: slowTavily, youtube }));
+    expect(order[0]).toBe("youtube:start");
+  });
+
   it("ranks videos by score and keeps the top 3", async () => {
     const { output } = await research({ topic: "t", plan: knowledgePlan, mode: "deep" }, deps());
     const videos = output[0]!.sources.filter((s) => s.type === "video");

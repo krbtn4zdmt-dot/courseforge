@@ -1,5 +1,6 @@
 import "server-only";
 
+import { mapWithConcurrency } from "@/lib/concurrency";
 import type { CallJsonOptions } from "@/lib/llm/client";
 import { createFileCache } from "@/lib/research/cache";
 import { makeExcerpt, termsFrom, trimGrounding } from "@/lib/research/grounding";
@@ -62,19 +63,7 @@ interface Candidate extends Source {
   snippet: string;
 }
 
-/** Runs fn over items with at most `limit` in flight; results keep input order. */
-export async function mapWithConcurrency<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let next = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
-      const i = next++;
-      results[i] = await fn(items[i]!);
-    }
-  });
-  await Promise.all(workers);
-  return results;
-}
+export { mapWithConcurrency };
 
 const DOCS_HOST = /^(docs|developer|learn|support)\./;
 
@@ -101,6 +90,27 @@ function videoToSource(video: YouTubeVideo, query: string, now: Date): Source {
     excerpt: `${video.channelTitle} · ${Math.round(video.durationSeconds / 60)} min`,
     grounding: null,
   };
+}
+
+/** Deep-mode videos per subtopic. Failures other than quota are recorded in stats, never thrown: videos are optional. */
+async function searchVideosFor(input: ResearchInput, deps: ResearchDeps, now: Date, stats: ResearchStats): Promise<Map<string, Source[]>> {
+  const videosBySubtopic = new Map<string, Source[]>();
+  const videoJobs = input.plan.subtopics
+    .filter((s) => s.importance <= 2)
+    .map((s) => ({ subtopic: s.name, query: input.plan.searchQueries.find((q) => q.subtopic === s.name)!.queries[0]! }));
+  try {
+    const youtube = deps.youtube ?? createYouTubeClient({ cache: createFileCache() });
+    const yt = await youtube.searchVideos(videoJobs.map((j) => j.query), { language: input.language ?? "en" });
+    stats.youtubeUnits = yt.unitsUsed;
+    stats.youtubeQuotaExhausted = yt.quotaExhausted;
+    for (const job of videoJobs) {
+      videosBySubtopic.set(job.subtopic, (yt.videosByQuery[job.query] ?? []).map((v) => videoToSource(v, job.query, now)));
+    }
+  } catch (err) {
+    stats.youtubeError = err instanceof Error ? err.message : String(err);
+    console.warn(`[researcher] YouTube search failed; lessons will have no videos: ${stats.youtubeError}`);
+  }
+  return videosBySubtopic;
 }
 
 /** Dedupe (URL, then near-duplicate text) and keep the top `max` by score. */
@@ -133,6 +143,9 @@ export async function research(input: ResearchInput, deps: ResearchDeps = {}): P
   const add = (c: Omit<Candidate, "id" | "score">) => {
     if (URL.canParse(c.url)) candidates.push({ ...c, id: `c${candidates.length + 1}`, score: 0 });
   };
+
+  // YouTube: importance 1–2 subtopics, first query each. Runs alongside web, Wikipedia and relevance.
+  const videosPromise = deep ? searchVideosFor(input, deps, now, stats) : Promise.resolve(new Map<string, Source[]>());
 
   // Web search
   const jobs = webQueriesFor(input.plan, input.mode);
@@ -209,27 +222,8 @@ export async function research(input: ResearchInput, deps: ResearchDeps = {}): P
     }
   }
 
-  // YouTube: importance 1–2 subtopics, first query each
-  const videosBySubtopic = new Map<string, Source[]>();
-  if (deep) {
-    const videoJobs = input.plan.subtopics
-      .filter((s) => s.importance <= 2)
-      .map((s) => ({ subtopic: s.name, query: input.plan.searchQueries.find((q) => q.subtopic === s.name)!.queries[0]! }));
-    const youtube = deps.youtube ?? createYouTubeClient({ cache: createFileCache() });
-    try {
-      const yt = await youtube.searchVideos(videoJobs.map((j) => j.query), { language: input.language ?? "en" });
-      stats.youtubeUnits = yt.unitsUsed;
-      stats.youtubeQuotaExhausted = yt.quotaExhausted;
-      for (const job of videoJobs) {
-        const videos = (yt.videosByQuery[job.query] ?? []).map((v) => videoToSource(v, job.query, now));
-        videosBySubtopic.set(job.subtopic, videos);
-      }
-    } catch (err) {
-      // Videos are optional (0 per lesson is allowed); a YouTube failure shouldn't sink the course.
-      stats.youtubeError = err instanceof Error ? err.message : String(err);
-      console.warn(`[researcher] YouTube search failed; lessons will have no videos: ${stats.youtubeError}`);
-    }
-  }
+  // YouTube results (started before the web search; they don't depend on it)
+  const videosBySubtopic = await videosPromise;
 
   // Merge, dedupe and keep the top sources per subtopic
   const output: ResearcherOutput = input.plan.subtopics.map(({ name }) => {

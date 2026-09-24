@@ -40,6 +40,29 @@ describe("rateRelevance", () => {
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("s2"));
   });
 
+  it("runs batches in parallel and falls back to 0.5 only for a failed batch", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    let inFlight = 0;
+    let peak = 0;
+    const call = vi.fn(async (opts: Parameters<typeof callJson>[0]) => {
+      inFlight++;
+      peak = Math.max(peak, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight--;
+      const ids = [...opts.prompt.matchAll(/^id: (\S+)$/gm)].map((m) => m[1]!);
+      if (ids.includes("s26")) throw new Error("validation failed twice");
+      return { scores: ids.map((id) => ({ id, relevance: 0.9 })) };
+    }) as unknown as typeof callJson;
+
+    const scores = await rateRelevance({ topic: "t", items: items(60), callJsonFn: call }); // 3 batches
+    expect(peak).toBe(3);
+    expect(scores.get("s1")).toBe(0.9);
+    expect(scores.get("s26")).toBe(DEFAULT_RELEVANCE); // second batch (s26–s50) failed
+    expect(scores.get("s50")).toBe(DEFAULT_RELEVANCE);
+    expect(scores.get("s51")).toBe(0.9);
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("a batch of 25 failed"));
+  });
+
   it("makes no call for an empty list", async () => {
     const call = vi.fn() as unknown as typeof callJson;
     expect((await rateRelevance({ topic: "t", items: [], callJsonFn: call })).size).toBe(0);
