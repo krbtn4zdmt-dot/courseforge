@@ -24,7 +24,7 @@ Status key: `[ ]` todo · `[~]` in progress · `[x]` done. Claude Code updates t
 Goal: prove the course quality before building any app. Output is a JSON file you can read.
 
 ### [ ] 1.1 Time-budget engine
-**Acceptance:** `timeBudget.ts` implements the rules in ARCHITECTURE.md; ≥ 8 unit tests including 1-day, 7-day, 30-day, skill vs knowledge, and final-day review.
+**Acceptance:** `timeBudget.ts` implements the rules in ARCHITECTURE.md; ≥ 8 unit tests including 1-day, 7-day, 30-day, skill vs knowledge, final-day review, and the worked-examples table; a test sweeps every `minutesPerDay` from 15 to 90 and asserts every day sums to `minutesPerDay` and every lesson is 10–25 min.
 **Prompt:**
 > Do task 1.1. Implement the time-budget engine exactly per docs/ARCHITECTURE.md as a pure function with thorough tests.
 
@@ -34,12 +34,12 @@ Goal: prove the course quality before building any app. Output is a JSON file yo
 > Do task 1.2. Create Zod schemas for every agent output in docs/AGENTS.md and write the prompt templates, following the rules listed for each agent. Put example valid/invalid outputs in tests/fixtures.
 
 ### [ ] 1.3 Research clients
-**Acceptance:** `tavily.ts`, `youtube.ts`, `wikipedia.ts` each export a typed search function with timeouts and error handling; `scoring.ts` implements the scoring rules with unit tests; a smoke script prints top 5 scored sources for "Alexander the Great".
+**Acceptance:** `tavily.ts`, `youtube.ts`, `wikipedia.ts` each export a typed search function with timeouts and error handling; YouTube stays within 8 searches per course, caches by query, and returns no videos (not an error) when quota runs out; `scoring.ts` implements the scoring and shingle-dedupe rules with unit tests; a smoke script prints top 5 scored sources for "Alexander the Great" and the YouTube quota units it used.
 **Prompt:**
-> Do task 1.3. Build the three research clients and the source scoring module per docs/ARCHITECTURE.md. Decide embeddings vs LLM-based relevance scoring (see the embeddings note), explain your recommendation, and log the decision. Then run the smoke test and show me the output.
+> Do task 1.3. Build the three research clients and the source scoring module per docs/ARCHITECTURE.md. Use MODEL_FAST relevance scoring (no embeddings; see the embeddings note). Then run the smoke test and show me the output.
 
 ### [ ] 1.4 Planner, Researcher, Curriculum Designer
-**Acceptance:** each agent function works end to end on a real topic; curriculum day totals are within ±10% of budget (enforced in code with one retry).
+**Acceptance:** each agent function works end to end on a real topic; the researcher supports light and deep modes; curriculum days match the time budget's slots and totals are within ±10% (enforced in code with one retry, then snapped to the slots); light research + planner + curriculum time is printed.
 **Prompt:**
 > Do task 1.4. Implement planner.ts, researcher.ts, and curriculum.ts per docs/AGENTS.md using the LLM client. Enforce the time-total rule in code. Show me the syllabus output for "Excel for beginners, 7 days, 30 min/day".
 
@@ -85,7 +85,7 @@ Read the three generated courses yourself. Are they accurate? Well paced? Would 
 > Do task 3.1. Set up Inngest (client, API route, local dev) and build the syllabus generation function with each agent as its own step.
 
 ### [ ] 3.2 Just-in-time lesson jobs
-**Acceptance:** on confirm, Day 1 lessons generate in parallel; completing day N queues day N+2; a scheduled function tops up active courses nightly; each lesson's status moves pending → generating → ready/failed.
+**Acceptance:** on confirm, deep research runs as its own step, then Day 1 lessons generate in parallel; completing day N queues day N+2; a scheduled function tops up active courses nightly; each lesson's status moves pending → generating → ready/failed.
 **Prompt:**
 > Do task 3.2. Implement just-in-time lesson generation per the Generation strategy section of docs/ARCHITECTURE.md.
 
@@ -109,14 +109,14 @@ Read the three generated courses yourself. Are they accurate? Well paced? Would 
 > Do task 4.3. Build the lesson page with all elements in the acceptance criteria.
 
 ### [ ] 4.4 Dashboard + progress
-**Acceptance:** `/courses` lists courses with progress bars; course overview shows days, locked/unlocked state, streak; final day shows final quiz and summary.
+**Acceptance:** `/courses` lists courses with progress bars; course overview shows days, locked/unlocked state (day N unlocks when day N−1 is complete), streak; final day shows final quiz and summary.
 **Prompt:**
 > Do task 4.4. Build the courses dashboard and course overview with progress tracking.
 
 ### [ ] 4.5 Polish + deploy
-**Acceptance:** empty states, error states, loading skeletons everywhere; Lighthouse accessibility ≥ 90; deployed to Vercel with env vars set; Inngest connected in production.
+**Acceptance:** empty states, error states, loading skeletons everywhere; Lighthouse accessibility ≥ 90; YouTube quota increase requested (or the beta sized to the default quota); deployed to Vercel with env vars set; Inngest connected in production.
 **Prompt:**
-> Do task 4.5. Do a polish pass (empty/error/loading states, accessibility), then walk me through deploying to Vercel and connecting Inngest and Supabase in production.
+> Do task 4.5. Do a polish pass (empty/error/loading states, accessibility), help me request a YouTube Data API quota increase, then walk me through deploying to Vercel and connecting Inngest and Supabase in production.
 
 ### 🛑 Checkpoint: beta test
 Give it to 10–20 people. Track completion rate, time to first lesson, and cost per course. Collect feedback before V2.

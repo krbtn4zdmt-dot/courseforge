@@ -18,7 +18,7 @@ An app that builds a personalized, time-boxed course on any topic. The user says
 
 - **Framework:** Next.js (App Router) + TypeScript (strict mode)
 - **UI:** Tailwind CSS + shadcn/ui
-- **Database/Auth:** Supabase (Postgres + pgvector + Auth)
+- **Database/Auth:** Supabase (Postgres + Auth; no pgvector in MVP, see ARCHITECTURE.md)
 - **LLM:** Anthropic TypeScript SDK (`@anthropic-ai/sdk`)
 - **Research:** Tavily API (web), YouTube Data API v3 (video), Wikipedia REST API (facts)
 - **Background jobs:** Inngest
