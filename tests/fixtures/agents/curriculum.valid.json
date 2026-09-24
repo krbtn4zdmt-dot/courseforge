@@ -1,0 +1,30 @@
+{
+  "courseTitle": "Excel Essentials in 3 Days",
+  "courseSummary": "A hands-on introduction to Excel for complete beginners. You'll learn to enter and format data, write formulas with the most common functions, and turn a table into a chart.",
+  "days": [
+    {
+      "dayNumber": 1,
+      "theme": "Getting around and entering data",
+      "lessons": [
+        { "kind": "lesson", "title": "Your first workbook", "objectives": ["Identify workbooks, worksheets, rows, columns and cells", "Navigate a sheet with the keyboard"], "estMinutes": 15, "subtopics": ["Workbook basics and navigation"], "includesPractice": true },
+        { "kind": "lesson", "title": "Entering and formatting data", "objectives": ["Enter text, numbers and dates correctly", "Apply number and currency formats"], "estMinutes": 15, "subtopics": ["Entering and formatting data"], "includesPractice": true }
+      ]
+    },
+    {
+      "dayNumber": 2,
+      "theme": "Formulas that do the work",
+      "lessons": [
+        { "kind": "lesson", "title": "Formulas and cell references", "objectives": ["Write a formula that references other cells", "Explain the difference between relative and absolute references"], "estMinutes": 15, "subtopics": ["Formulas and cell references"], "includesPractice": true },
+        { "kind": "lesson", "title": "SUM, AVERAGE and IF", "objectives": ["Total and average a column with functions", "Use IF to label rows that meet a condition"], "estMinutes": 15, "subtopics": ["Common functions (SUM, AVERAGE, IF)"], "includesPractice": true }
+      ]
+    },
+    {
+      "dayNumber": 3,
+      "theme": "From table to chart",
+      "lessons": [
+        { "kind": "lesson", "title": "Sort, filter and chart your data", "objectives": ["Sort and filter a table", "Create and label a column chart"], "estMinutes": 21, "subtopics": ["Sorting and filtering", "Charts"], "includesPractice": true },
+        { "kind": "review", "title": "Course review and final quiz", "objectives": ["Recall the key skills from days 1–3", "Apply formulas and formatting to a new small table"], "estMinutes": 9, "subtopics": ["Formulas and cell references", "Common functions (SUM, AVERAGE, IF)", "Entering and formatting data"], "includesPractice": false }
+      ]
+    }
+  ]
+}

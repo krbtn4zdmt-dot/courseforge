@@ -1,0 +1,10 @@
+{
+  "topic": "Excel",
+  "days": 7,
+  "minutesPerDay": 30,
+  "level": "beginner",
+  "goal": "practical_skill",
+  "isAllowed": true,
+  "refusalMessage": null,
+  "nextQuestion": null
+}

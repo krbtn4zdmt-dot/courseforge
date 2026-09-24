@@ -1,0 +1,22 @@
+{
+  "questions": [
+    {
+      "prompt": "Who tutored Alexander as a teenager?",
+      "options": [{ "id": "a", "text": "Plato" }, { "id": "b", "text": "Aristotle" }, { "id": "c", "text": "Socrates" }, { "id": "d", "text": "Homer" }],
+      "correctOptionId": "b",
+      "explanation": "The lesson explains that Aristotle taught Alexander and encouraged his interest in science and Homer."
+    },
+    {
+      "prompt": "How old was Alexander when he became king?",
+      "options": [{ "id": "a", "text": "16" }, { "id": "b", "text": "33" }, { "id": "c", "text": "20" }, { "id": "d", "text": "25" }],
+      "correctOptionId": "c",
+      "explanation": "Philip II was assassinated in 336 BCE, when Alexander was 20. He died at 32, which makes 33 a tempting but wrong answer."
+    },
+    {
+      "prompt": "Why does Alexander's empire matter for later history?",
+      "options": [{ "id": "a", "text": "It spread Greek language and culture from Egypt to India" }, { "id": "b", "text": "It lasted for a thousand years under his heirs" }, { "id": "c", "text": "It ended the use of Greek in Egypt" }, { "id": "d", "text": "It united Rome and Greece" }],
+      "correctOptionId": "a",
+      "explanation": "The lesson opens by noting that his conquests spread Greek language and culture across a huge region."
+    }
+  ]
+}

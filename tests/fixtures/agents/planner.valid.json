@@ -1,0 +1,27 @@
+{
+  "topicType": "skill",
+  "sensitiveDomain": null,
+  "subtopics": [
+    { "name": "Workbook basics and navigation", "importance": 1, "prerequisites": [] },
+    { "name": "Entering and formatting data", "importance": 1, "prerequisites": ["Workbook basics and navigation"] },
+    { "name": "Formulas and cell references", "importance": 1, "prerequisites": ["Entering and formatting data"] },
+    { "name": "Common functions (SUM, AVERAGE, IF)", "importance": 1, "prerequisites": ["Formulas and cell references"] },
+    { "name": "Sorting and filtering", "importance": 2, "prerequisites": ["Entering and formatting data"] },
+    { "name": "Charts", "importance": 2, "prerequisites": ["Entering and formatting data"] },
+    { "name": "PivotTables", "importance": 3, "prerequisites": ["Sorting and filtering"] }
+  ],
+  "searchQueries": [
+    { "subtopic": "Workbook basics and navigation", "queries": ["Excel for beginners workbook worksheet navigation", "Excel ribbon and cells explained"] },
+    { "subtopic": "Entering and formatting data", "queries": ["how to enter and format data in Excel beginners", "Excel number formats tutorial"] },
+    { "subtopic": "Formulas and cell references", "queries": ["Excel formulas relative and absolute references explained", "Excel formula basics tutorial", "Excel dollar sign reference"] },
+    { "subtopic": "Common functions (SUM, AVERAGE, IF)", "queries": ["Excel SUM AVERAGE IF functions beginner guide", "Excel IF function examples"] },
+    { "subtopic": "Sorting and filtering", "queries": ["how to sort and filter data in Excel", "Excel AutoFilter tutorial"] },
+    { "subtopic": "Charts", "queries": ["create a chart in Excel step by step", "choosing the right Excel chart type"] },
+    { "subtopic": "PivotTables", "queries": ["Excel PivotTable tutorial for beginners", "PivotTable summarize data Excel"] }
+  ],
+  "commonMisconceptions": [
+    "Typing numbers with units (\"5 kg\") still lets Excel calculate with them",
+    "Copying a formula always keeps the same cell references",
+    "Deleting a cell's contents and deleting the cell are the same thing"
+  ]
+}
