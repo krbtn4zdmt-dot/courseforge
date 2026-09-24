@@ -40,6 +40,14 @@ describe("fetchJson", () => {
     expect(err).toMatchObject({ status: 500, body: { error: "nope" } });
   });
 
+  it("reports an egress-proxy denial clearly and doesn't retry it", async () => {
+    const fetch = mockFetch(() => new Response("Host not in allowlist", { status: 403, headers: { "x-deny-reason": "host_not_allowed" } }));
+    await expect(fetchJson({ service: "tavily", url: "https://api.tavily.com/search", schema, timeoutMs: 1_000, fetch, retries: 2 })).rejects.toThrow(
+      "[tavily] blocked by the network policy (host_not_allowed): allow api.tavily.com",
+    );
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("returns null for statuses listed in nullOn", async () => {
     const fetch = mockFetch(() => jsonResponse({}, 404));
     expect(await fetchJson({ service: "wikipedia", url: "https://x.test/", schema, timeoutMs: 1_000, fetch, nullOn: [404] })).toBeNull();

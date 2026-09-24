@@ -34,6 +34,10 @@ pnpm test                # run unit tests
 pnpm typecheck           # next typegen + tsc --noEmit
 pnpm lint                # eslint
 pnpm gen:course "<topic>" --days 3 --minutes 30 --level beginner   # CLI pipeline test (Phase 1)
+pnpm research:smoke "<topic>"              # research clients + scoring smoke test (task 1.3)
+pnpm gen:syllabus "<topic>" --days 7 --minutes 30 --level beginner --goal understand [--out out/x.json]
+pnpm gen:lesson --from out/x.json --day 1 --lesson 1   # one lesson (or pass the topic + intake flags)
+pnpm check:live                          # preflight + all Phase 1 live checks in order; logs to out/live-checks/
 npx inngest-cli dev      # local Inngest dev server (Phase 3+)
 ```
 

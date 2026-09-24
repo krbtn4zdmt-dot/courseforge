@@ -74,6 +74,10 @@ async function fetchJsonOnce<T>(opts: FetchJsonOptions<T>): Promise<T | null> {
     );
   }
 
+  const denied = res.headers.get("x-deny-reason");
+  if (denied) {
+    throw new ResearchError(opts.service, `blocked by the network policy (${denied}): allow ${new URL(opts.url).host}`, res.status);
+  }
   if (opts.nullOn?.includes(res.status)) return null;
   const body = await readBody(res);
   if (!res.ok) {

@@ -13,7 +13,8 @@
     "gen:course": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/gen-course.ts",
     "research:smoke": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/research-smoke.ts",
     "gen:syllabus": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/gen-syllabus.ts",
-    "gen:lesson": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/gen-lesson.ts"
+    "gen:lesson": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/gen-lesson.ts",
+    "check:live": "tsx --env-file-if-exists=.env.local scripts/live-checks.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
