@@ -31,7 +31,7 @@ An app that builds a personalized, time-boxed course on any topic. The user says
 ```bash
 pnpm dev                 # run the app locally
 pnpm test                # run unit tests
-pnpm typecheck           # tsc --noEmit
+pnpm typecheck           # next typegen + tsc --noEmit
 pnpm lint                # eslint
 pnpm gen:course "<topic>" --days 3 --minutes 30 --level beginner   # CLI pipeline test (Phase 1)
 npx inngest-cli dev      # local Inngest dev server (Phase 3+)

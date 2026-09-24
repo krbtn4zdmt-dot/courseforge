@@ -8,7 +8,7 @@ Status key: `[ ]` todo · `[~]` in progress · `[x]` done. Claude Code updates t
 
 ## Phase 0: Project setup
 
-### [ ] 0.1 Scaffold the project
+### [x] 0.1 Scaffold the project
 **Acceptance:** `pnpm dev` serves a page; `pnpm typecheck`, `pnpm lint`, `pnpm test` all pass; `.env.example` lists every variable in CLAUDE.md; `.gitignore` excludes `.env.local`; git repo initialized with first commit.
 **Prompt:**
 > Do task 0.1 from docs/BUILD_PLAN.md. Scaffold a Next.js App Router + TypeScript (strict) project with pnpm, Tailwind, shadcn/ui, Vitest, and ESLint. Create the folder structure from docs/ARCHITECTURE.md with placeholder index files. Add the scripts listed in CLAUDE.md (gen:course can be a stub for now). Show me the plan first.

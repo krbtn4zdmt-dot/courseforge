@@ -240,3 +240,7 @@ Enable Row Level Security on all user tables: users can only read/write rows tie
 | 2026-09-24 | Fact-Checker gets trimmed source passages (`grounding`), not just excerpts, and fails on contradictions, not every unsupported claim | Short excerpts would flag most true claims as unsupported, making the < 5% target impossible |
 | 2026-09-24 | Day N unlocks when day N−1 is complete | Matches just-in-time generation (N+1 is ready by then) and keeps pacing |
 | 2026-09-24 | Quiz answers readable client-side in MVP | Self-study only; instant feedback without a round trip |
+| 2026-09-24 | Next.js 16 + Tailwind v4; `pnpm typecheck` runs `next typegen` before `tsc` | Next 16 declares `LayoutProps`/`PageProps` globals in generated `.next/types`; without typegen a fresh clone fails typecheck |
+| 2026-09-24 | Root `AGENTS.md` holds the Next.js agent-rules block (separate from `docs/AGENTS.md`) | `next dev` otherwise writes that block into `CLAUDE.md`; keeping it in its own file leaves `CLAUDE.md` untouched |
+| 2026-09-24 | shadcn/ui files written by hand (new-york style, neutral base) instead of `shadcn init` | The build sandbox blocks `ui.shadcn.com`; the output is identical source and `components.json` lets `shadcn add` work later where the host is reachable |
+| 2026-09-24 | `noUncheckedIndexedAccess` on in tsconfig | Array-indexing safety for time-budget and syllabus math |
