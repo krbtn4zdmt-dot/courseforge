@@ -13,7 +13,7 @@ Status key: `[ ]` todo · `[~]` in progress · `[x]` done. Claude Code updates t
 **Prompt:**
 > Do task 0.1 from docs/BUILD_PLAN.md. Scaffold a Next.js App Router + TypeScript (strict) project with pnpm, Tailwind, shadcn/ui, Vitest, and ESLint. Create the folder structure from docs/ARCHITECTURE.md with placeholder index files. Add the scripts listed in CLAUDE.md (gen:course can be a stub for now). Show me the plan first.
 
-### [ ] 0.2 LLM client wrapper
+### [x] 0.2 LLM client wrapper
 **Acceptance:** `src/lib/llm/client.ts` exports `callJson<T>(opts: { agent, model, system, prompt, schema })`; retries on network errors (3x backoff); on Zod failure retries once with the error appended; logs tokens and estimated cost; unit tests cover success, invalid-JSON retry, and final failure (with the SDK mocked).
 **Prompt:**
 > Do task 0.2. Build the LLM client wrapper as described in CLAUDE.md and the acceptance criteria. Include a small cost table in llm/cost.ts keyed by model env var with a TODO to confirm current prices. Write the tests with a mocked Anthropic SDK.
