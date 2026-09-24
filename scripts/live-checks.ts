@@ -31,6 +31,11 @@ const STEPS: Step[] = [
     args: ["gen:course", "Excel for beginners", "--days", "7", "--minutes", "30", "--level", "beginner", "--goal", "practical_skill"],
   },
   { name: "course-black-holes", task: "1.6", args: ["gen:course", "How black holes work", "--days", "2", "--minutes", "30", "--level", "beginner"] },
+  {
+    name: "audit-courses",
+    task: "1.6",
+    args: ["audit:course", "out/alexander-the-great.json", "out/excel-for-beginners.json", "out/how-black-holes-work.json"],
+  },
 ];
 
 const { values } = parseArgs({
