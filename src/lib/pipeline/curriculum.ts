@@ -89,6 +89,27 @@ export function checkAgainstBudget(
   return check;
 }
 
+const nameKey = (name: string) =>
+  name.toLowerCase().replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+
+/**
+ * Maps subtopic names that differ from the planner's only in case, spacing or punctuation
+ * ("workbook basics & navigation") back to the planner's exact name. Lesson sources are looked up by name.
+ */
+export function normalizeSubtopics(syllabus: CurriculumOutput, subtopicNames: readonly string[]): CurriculumOutput {
+  const canonical = new Map(subtopicNames.map((n) => [nameKey(n), n]));
+  return {
+    ...syllabus,
+    days: syllabus.days.map((day) => ({
+      ...day,
+      lessons: day.lessons.map((item) => ({
+        ...item,
+        subtopics: [...new Set(item.subtopics.map((s) => canonical.get(nameKey(s)) ?? s))],
+      })),
+    })),
+  };
+}
+
 export function allProblems(check: BudgetCheck): string[] {
   return [...check.structure, ...check.minutes, ...check.subtopics];
 }
@@ -148,9 +169,9 @@ export async function designCurriculum(input: DesignCurriculumInput, deps: Agent
     sourceSummaries: sourceSummariesFrom(input.research),
     edit: input.edit,
   };
-  const generate = (fix?: { previous: CurriculumOutput; problems: string[] }) => {
+  const generate = async (fix?: { previous: CurriculumOutput; problems: string[] }) => {
     const { system, prompt } = buildCurriculumPrompt({ ...promptInput, fix });
-    return call({
+    const syllabus = await call({
       agent: "curriculum",
       model: "smart",
       system,
@@ -159,6 +180,7 @@ export async function designCurriculum(input: DesignCurriculumInput, deps: Agent
       maxTokens: curriculumMaxTokens(input.budget),
       onUsage: deps.onUsage,
     });
+    return normalizeSubtopics(syllabus, subtopicNames);
   };
   const check = (s: CurriculumOutput) => checkAgainstBudget(s, input.budget, input.intake.minutesPerDay, subtopicNames);
 

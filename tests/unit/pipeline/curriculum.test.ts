@@ -160,3 +160,24 @@ describe("curriculumMaxTokens", () => {
     expect(curriculumMaxTokens(buildTimeBudget({ days: 30, minutesPerDay: 60, topicType: "skill" }))).toBe(27_400);
   });
 });
+
+describe("normalizeSubtopics", () => {
+  it("maps near-miss names to the planner's exact name and leaves unknown ones", async () => {
+    const { normalizeSubtopics } = await import("@/lib/pipeline/curriculum");
+    const s = structuredClone(good());
+    s.days[0]!.lessons[0]!.subtopics = ["workbook basics & navigation", "Workbook Basics and Navigation ", "Macros"];
+    s.days[0]!.lessons[1]!.subtopics = ["COMMON FUNCTIONS (SUM, AVERAGE, IF)"];
+    const out = normalizeSubtopics(s, names);
+    expect(out.days[0]!.lessons[0]!.subtopics).toEqual(["Workbook basics and navigation", "Macros"]); // "&" = "and"; duplicates merged
+    expect(out.days[0]!.lessons[1]!.subtopics).toEqual(["Common functions (SUM, AVERAGE, IF)"]);
+  });
+
+  it("is applied before the budget check, so near-misses don't cost a retry", async () => {
+    const s = structuredClone(good());
+    s.days[0]!.lessons[0]!.subtopics = ["workbook basics and navigation"];
+    const call = vi.fn(async () => s) as unknown as typeof callJson;
+    const out = await designCurriculum({ intake, plan: excelPlan, research, budget }, { callJson: call });
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(out.syllabus.days[0]!.lessons[0]!.subtopics).toEqual(["Workbook basics and navigation"]);
+  });
+});
