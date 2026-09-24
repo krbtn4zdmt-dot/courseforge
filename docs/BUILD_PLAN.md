@@ -48,7 +48,7 @@ Goal: prove the course quality before building any app. Output is a JSON file yo
 **Prompt:**
 > Do task 1.5. Implement lessonWriter.ts, examiner.ts, and factChecker.ts with the rewrite loop from docs/AGENTS.md. Generate Day 1 Lesson 1 for the Excel syllabus and show me the full output.
 
-### [ ] 1.6 Full CLI run
+### [~] 1.6 Full CLI run
 **Acceptance:** `pnpm gen:course "Alexander the Great" --days 3 --minutes 30 --level beginner` writes `out/<slug>.json` and `out/<slug>.md` (readable course); prints total time, cost, and fact-check pass rate. Run on 3 very different topics.
 **Prompt:**
 > Do task 1.6. Wire everything together in runCourse.ts and scripts/gen-course.ts. Run it for "Alexander the Great" (3 days), "Excel for beginners" (7 days), and "How black holes work" (2 days). Report time, cost, and fact-check results for each.

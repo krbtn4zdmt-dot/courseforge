@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { LlmCallLog } from "@/lib/llm/cost";
+
 import { designCurriculum, type CurriculumResult } from "./curriculum";
 import { examineLesson } from "./examiner";
 import { factCheckLesson, type FactCheckResult } from "./factChecker";
@@ -7,7 +9,7 @@ import { selectLessonSources, selectLessonVideos } from "./lessonSources";
 import { writeLesson } from "./lessonWriter";
 import { planCourse, type AgentDeps } from "./planner";
 import type { LessonWriterPromptInput } from "./prompts/lessonWriter";
-import { research, type ResearchDeps, type ResearchStats } from "./researcher";
+import { mapWithConcurrency, research, type ResearchDeps, type ResearchStats } from "./researcher";
 import type {
   CompletedIntake,
   CurriculumOutput,
@@ -182,6 +184,134 @@ export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): 
       attempts,
       rewritten: attempts === 2,
       unverifiedClaims: result.passed ? [] : result.issues,
+    },
+  };
+}
+
+// ---------- Whole course: syllabus → deep research → every item ----------
+
+export const LESSON_CONCURRENCY = 3;
+
+export type LessonOutcome =
+  | { status: "ready"; lesson: GeneratedLesson }
+  | { status: "failed"; dayNumber: number; position: number; title: string; error: string };
+
+export interface CourseStats {
+  timings: { syllabusMs: number; deepResearchMs: number; lessonsMs: number; totalMs: number };
+  llm: {
+    calls: number;
+    costUsd: number;
+    /** Calls whose model had no price in the cost table. */
+    unpricedCalls: number;
+    byAgent: Record<string, { calls: number; costUsd: number }>;
+  };
+  lessons: {
+    total: number;
+    ready: number;
+    failed: number;
+    rewritten: number;
+    shippedWithNotice: number;
+    /** Share of ready lessons shipped without the unverified-claims notice; null when none are ready. */
+    factCheckPassRate: number | null;
+  };
+  youtubeUnits: number;
+}
+
+export interface CourseResult {
+  intake: CompletedIntake;
+  syllabus: SyllabusResult;
+  deepResearch: { output: ResearcherOutput; stats: ResearchStats };
+  lessons: LessonOutcome[];
+  stats: CourseStats;
+}
+
+export interface CourseDeps extends SyllabusDeps {
+  lessonConcurrency?: number;
+}
+
+export function summarizeUsage(logs: readonly LlmCallLog[]): CourseStats["llm"] {
+  const byAgent: CourseStats["llm"]["byAgent"] = {};
+  for (const log of logs) {
+    const agent = (byAgent[log.agent] ??= { calls: 0, costUsd: 0 });
+    agent.calls++;
+    agent.costUsd += log.costUsd ?? 0;
+  }
+  return {
+    calls: logs.length,
+    costUsd: logs.reduce((n, l) => n + (l.costUsd ?? 0), 0),
+    unpricedCalls: logs.filter((l) => l.costUsd === null).length,
+    byAgent,
+  };
+}
+
+export function summarizeLessons(outcomes: readonly LessonOutcome[]): CourseStats["lessons"] {
+  const ready = outcomes.flatMap((o) => (o.status === "ready" ? [o.lesson] : []));
+  const shippedWithNotice = ready.filter((l) => l.factCheck.unverifiedClaims.length > 0).length;
+  return {
+    total: outcomes.length,
+    ready: ready.length,
+    failed: outcomes.length - ready.length,
+    rewritten: ready.filter((l) => l.factCheck.rewritten).length,
+    shippedWithNotice,
+    factCheckPassRate: ready.length ? (ready.length - shippedWithNotice) / ready.length : null,
+  };
+}
+
+export async function runCourse(intake: CompletedIntake, deps: CourseDeps = {}): Promise<CourseResult> {
+  const clock = deps.clock ?? Date.now;
+  const logs: LlmCallLog[] = [];
+  const onUsage = (log: LlmCallLog) => {
+    logs.push(log);
+    deps.onUsage?.(log);
+  };
+  const agentDeps: AgentDeps = { callJson: deps.callJson, onUsage };
+  const t0 = clock();
+
+  const syllabus = await generateSyllabus(intake, { ...deps, onUsage, research: { ...deps.research, onUsage } });
+  const t1 = clock();
+
+  const deepResearch = await research(
+    { topic: intake.topic, plan: syllabus.plan, mode: "deep", previous: syllabus.research },
+    { ...deps.research, onUsage },
+  );
+  const t2 = clock();
+
+  const items = syllabus.curriculum.syllabus.days.flatMap((day) =>
+    day.lessons.map((item, position) => ({ dayNumber: day.dayNumber, position, title: item.title })),
+  );
+  const lessons = await mapWithConcurrency(items, deps.lessonConcurrency ?? LESSON_CONCURRENCY, async (item): Promise<LessonOutcome> => {
+    try {
+      const lesson = await generateLesson(
+        {
+          intake,
+          plan: syllabus.plan,
+          syllabus: syllabus.curriculum.syllabus,
+          budget: syllabus.budget,
+          research: deepResearch.output,
+          dayNumber: item.dayNumber,
+          position: item.position,
+        },
+        agentDeps,
+      );
+      return { status: "ready", lesson };
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      console.error(`[course] day ${item.dayNumber} item ${item.position + 1} "${item.title}" failed: ${error}`);
+      return { status: "failed", ...item, error };
+    }
+  });
+  const t3 = clock();
+
+  return {
+    intake,
+    syllabus,
+    deepResearch,
+    lessons,
+    stats: {
+      timings: { syllabusMs: t1 - t0, deepResearchMs: t2 - t1, lessonsMs: t3 - t2, totalMs: t3 - t0 },
+      llm: summarizeUsage(logs),
+      lessons: summarizeLessons(lessons),
+      youtubeUnits: deepResearch.stats.youtubeUnits,
     },
   };
 }
