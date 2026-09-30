@@ -187,3 +187,26 @@ Format:
   - Cost per 7 days: $1.94–$2.73 against < $0.75. Being worked on next.
   - Correct quiz answers are skewed toward "b" (Excel 50/70).
 - Decisions: none.
+
+## 2026-09-30: Cost overrun, first pass (supports 1.6 and the SPEC cost target; measurement incomplete)
+- Context: the first live run cost $1.94 for the 7-day Excel course and $2.73 per 7 days at Alexander's pace, against a target of < $0.75. The lesson writer (Sonnet 5.5) was 74% of spend. About half its output was thinking at the default `high` effort, and about half the characters of Tavily's markdown grounding were link URLs and titles. The price table was checked against Anthropic's current model table and is correct.
+- Changed (commit `cec1d44`):
+  - `trimGrounding` now runs `stripMarkdownNoise` first. It keeps link text and drops URLs and titles, images, autolinks, footnote/back-reference/edit links, table separator rows and empty cells. Offline, on the first run's stored grounding, this removed 43% of characters for Alexander, 37% for black holes and 17% for Excel.
+  - `callJson` takes an optional `effort`. It goes in `output_config` next to the format and is skipped for models that reject it (Haiku 4.5, Sonnet 4.5).
+  - Call logs now include `think=` (thinking tokens).
+  - The lesson writer uses `effort: "medium"`.
+- Evidence:
+  - `pnpm test` 344/344 passed (6 new `stripMarkdownNoise` tests, 1 for word counting after stripping, 2 client tests for effort and thinking tokens). Typecheck and lint are clean.
+  - Live A/B with Excel (7 days) and Alexander (3 days). Both runs stopped early when the Anthropic account ran out of credits: 12–13 of 18 Excel lessons and 3 of 6 Alexander lessons failed with "Your credit balance is too low". Whole-course costs are therefore not comparable. Lesson-writer cost per successful call:
+    - Excel: baseline $0.0624. Stripping + Sonnet medium: $0.0404 (−35%; input 11.2k→8.0k, output 4.0k→2.4k). Stripping + Haiku: $0.0138 (−78%).
+    - Alexander: baseline $0.1156. Stripping + Sonnet medium: $0.0650 (−44%; input 29.0k→16.1k, output 5.8k→3.3k). Stripping + Haiku: $0.0235 (−80%).
+    - Only 5 of 18 Sonnet-medium calls reported any thinking tokens.
+  - Projected from the per-call numbers: Excel ≈ $1.35–1.45 (was $1.94); Alexander ≈ $1.9 per 7 days (was $2.73). Still above $0.75.
+  - Quality:
+    - Sonnet medium: 1 of 8 audited lessons came in under the word range (950 words against 1,200–1,600).
+    - Haiku: 7 of 11 lessons came in under range, some at half the target (461 words against 1,050–1,400). Fact-check flags were 0/6 on Excel and 1/3 on Alexander, but the samples are too small to compare.
+- Leftovers:
+  - Add Anthropic credits, then rerun the full measurement: `pnpm gen:course` for Excel and Alexander, then `pnpm audit:course`.
+  - Haiku as lesson writer is not adopted: its lessons are too short. It could be retried with a length-enforcing retry.
+  - $0.75 still needs a product decision: a cheaper writer, shorter lessons, or a revised target.
+- Decisions: one row added to the ARCHITECTURE.md decisions log.
