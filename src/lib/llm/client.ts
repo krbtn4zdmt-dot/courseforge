@@ -8,6 +8,10 @@ import { ANTHROPIC_API_KEY_VARS, anthropicDefaultHeaders, findAnthropicApiKey } 
 import { estimateCostUsd, logUsage, type LlmCallLog, type TokenUsage } from "./cost";
 
 export type ModelTier = "smart" | "fast";
+export type Effort = NonNullable<Anthropic.OutputConfig["effort"]>;
+
+/** Models that return a 400 for output_config.effort. */
+const EFFORT_UNSUPPORTED = /^claude-(?:haiku-4-5|sonnet-4-5)/;
 
 export interface CallJsonOptions<T> {
   /** Agent name, used for logging and cost tracking (e.g. "planner"). */
@@ -18,6 +22,11 @@ export interface CallJsonOptions<T> {
   prompt: string;
   schema: z.ZodType<T>;
   maxTokens?: number;
+  /**
+   * Thinking depth and overall token spend. Omitted: the model's default (high on Sonnet 5.5).
+   * Not sent to models that reject it (EFFORT_UNSUPPORTED).
+   */
+  effort?: Effort;
   /** Constrain the response to the schema via the API's structured outputs. Default true. */
   structuredOutput?: boolean;
   /** Called once per callJson, success or failure, with totals across all attempts. */
@@ -165,18 +174,21 @@ export function createLlmClient(deps: LlmClientDeps) {
     const model = resolveModel(opts.model);
     const started = Date.now();
     const usage: TokenUsage = { inputTokens: 0, outputTokens: 0 };
+    let thinkingTokens = 0;
     let attempts = 0;
     let ok = false;
 
     const maxTokens = opts.maxTokens ?? DEFAULT_MAX_TOKENS;
+    const outputConfig: Anthropic.OutputConfig = {
+      ...(opts.structuredOutput !== false && {
+        format: { type: "json_schema" as const, schema: zodOutputFormat(opts.schema).schema },
+      }),
+      ...(opts.effort && !EFFORT_UNSUPPORTED.test(model) && { effort: opts.effort }),
+    };
     const baseParams = {
       model,
       system: opts.system,
-      ...(opts.structuredOutput !== false && {
-        output_config: {
-          format: { type: "json_schema" as const, schema: zodOutputFormat(opts.schema).schema },
-        },
-      }),
+      ...(Object.keys(outputConfig).length > 0 && { output_config: outputConfig }),
     };
 
     async function attempt(messages: Anthropic.MessageParam[], max_tokens: number) {
@@ -185,6 +197,7 @@ export function createLlmClient(deps: LlmClientDeps) {
       });
       usage.inputTokens += message.usage.input_tokens;
       usage.outputTokens += message.usage.output_tokens;
+      thinkingTokens += message.usage.output_tokens_details?.thinking_tokens ?? 0;
       if (message.stop_reason === "refusal") {
         throw new LlmRefusalError(opts.agent, message.stop_details?.explanation ?? null);
       }
@@ -224,6 +237,7 @@ export function createLlmClient(deps: LlmClientDeps) {
         agent: opts.agent,
         model,
         ...usage,
+        thinkingTokens,
         costUsd: estimateCostUsd(model, usage),
         attempts,
         durationMs: Date.now() - started,

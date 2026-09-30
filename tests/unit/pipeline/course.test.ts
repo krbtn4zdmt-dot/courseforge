@@ -28,7 +28,7 @@ function mockRun(opts: { failTitle?: string; flagTitle?: string; plan?: PlannerO
   let inFlight = 0;
   let peak = 0;
   const call = vi.fn(async (o: Parameters<typeof callJson>[0]) => {
-    const log: LlmCallLog = { agent: o.agent, model: o.model === "smart" ? "claude-sonnet-5" : "claude-haiku-4-5", inputTokens: 1000, outputTokens: 100, costUsd: o.model === "smart" ? 0.003 : 0.0015, attempts: 1, durationMs: 1, ok: true };
+    const log: LlmCallLog = { agent: o.agent, model: o.model === "smart" ? "claude-sonnet-5" : "claude-haiku-4-5", inputTokens: 1000, outputTokens: 100, thinkingTokens: 0, costUsd: o.model === "smart" ? 0.003 : 0.0015, attempts: 1, durationMs: 1, ok: true };
     o.onUsage?.(log);
     switch (o.agent) {
       case "planner":
@@ -65,7 +65,7 @@ function mockRun(opts: { failTitle?: string; flagTitle?: string; plan?: PlannerO
     })),
   ) as unknown as typeof searchTavily;
   const relevance = vi.fn(async ({ items, onUsage }: Parameters<typeof rateRelevance>[0]) => {
-    onUsage?.({ agent: "relevance", model: "claude-haiku-4-5", inputTokens: 500, outputTokens: 50, costUsd: 0.001, attempts: 1, durationMs: 1, ok: true });
+    onUsage?.({ agent: "relevance", model: "claude-haiku-4-5", inputTokens: 500, outputTokens: 50, thinkingTokens: 0, costUsd: 0.001, attempts: 1, durationMs: 1, ok: true });
     return { scores: new Map(items.map((i) => [i.id, 0.8])), failedBatches: [] };
   }) as unknown as typeof rateRelevance;
   const youtube = {
@@ -146,7 +146,7 @@ describe("runCourse", () => {
 
 describe("summaries", () => {
   it("summarizeUsage counts unpriced calls", () => {
-    const log = (agent: string, costUsd: number | null): LlmCallLog => ({ agent, model: "m", inputTokens: 1, outputTokens: 1, costUsd, attempts: 1, durationMs: 1, ok: true });
+    const log = (agent: string, costUsd: number | null): LlmCallLog => ({ agent, model: "m", inputTokens: 1, outputTokens: 1, thinkingTokens: 0, costUsd, attempts: 1, durationMs: 1, ok: true });
     expect(summarizeUsage([log("a", 0.5), log("a", null), log("b", 0.25)])).toEqual({
       calls: 3,
       costUsd: 0.75,

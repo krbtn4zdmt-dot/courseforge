@@ -93,6 +93,27 @@ describe("callJson: success", () => {
     expect(createMessage.mock.calls[0]![0].output_config).toBeUndefined();
   });
 
+  it("sends effort alongside the format, and omits it for models that reject it", async () => {
+    const { client, createMessage } = setup([mockMessage(validQuizJson), mockMessage(validQuizJson), mockMessage(fencedQuizJson)]);
+    await client.callJson(opts({ effort: "medium" }));
+    expect(createMessage.mock.calls[0]![0].output_config).toMatchObject({ effort: "medium", format: { type: "json_schema" } });
+
+    await client.callJson(opts({ model: "fast", effort: "medium" }));
+    expect(createMessage.mock.calls[1]![0].output_config).not.toHaveProperty("effort");
+
+    await client.callJson(opts({ effort: "low", structuredOutput: false }));
+    expect(createMessage.mock.calls[2]![0].output_config).toEqual({ effort: "low" });
+  });
+
+  it("reports thinking tokens when the API returns them", async () => {
+    const message = mockMessage(validQuizJson);
+    message.usage.output_tokens_details = { thinking_tokens: 150 };
+    const { client } = setup([message]);
+    const logs: LlmCallLog[] = [];
+    await client.callJson(opts({ onUsage: (l) => logs.push(l) }));
+    expect(logs[0]).toMatchObject({ outputTokens: 200, thinkingTokens: 150 });
+  });
+
   it("reports tokens and cost through onUsage", async () => {
     const { client } = setup([mockMessage(validQuizJson)]);
     const logs: LlmCallLog[] = [];

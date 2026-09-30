@@ -167,3 +167,23 @@ Format:
 - Evidence: `pnpm test` 335/335 passed (1 new in `cost.test.ts`: 1M in + 0.5M out on Sonnet 5.5 = $7). Typecheck and lint are clean.
 - Leftovers: the pre-launch TODO to confirm every price against the pricing page still stands.
 - Decisions: none.
+
+## 2026-09-30: Live runs for tasks 1.3–1.6 (`pnpm check:live`, all 7 steps passed); 1.3, 1.4, 1.5 done
+- Context: the environment now has a working workspace-scoped key, so the pending live runs could finally happen. Run on commit `d1abb5e`; logs were kept in the session's scratchpad (`out/live-checks/2026-09-30T22-12-34-220Z/`), not committed.
+- Evidence:
+  - 1.3 ✅ `research:smoke "Alexander the Great"` printed "Scored 11 sources; 3 removed as duplicates", the top 5 sources and videos, and "YouTube quota: 202 units (2 live searches, 0 cached)". The 7-day Excel course used 803 units, which is within the 8-search cap (`MAX_SEARCHES_PER_COURSE`). Clients, scoring and dedupe are covered by unit tests.
+  - 1.4 ✅ `gen:syllabus "Excel for beginners"` (7 days × 30 min) printed 7 days of 30 min each and "planner 13.9s + light research 7.9s + curriculum 30.9s = 52.7s". The ±10% rule, with one retry and then snapping, is enforced in `curriculum.ts` and covered by unit tests.
+  - 1.5 ✅ `gen:lesson` (Excel, Day 1, Lesson 1) produced markdown citing [1]–[5], each mapped to a listed source URL. It has 4 quiz questions and printed "Fact-check: passed; 0 issue(s); no rewrite". The rewrite loop is covered by 4 tests in `runCourse.test.ts`: rewrite on fail, notice when the rewrite still fails, first draft when the rewrite errors, and a kept rewrite when its re-check fails.
+  - 1.6 (criteria met, but not marked done): all 3 topics wrote `.json` and `.md` and printed time, cost and pass rate.
+    - Alexander (3 days): 313.6s, $1.17, 83% (6/6 lessons ready).
+    - Excel (7 days): 403.6s, $1.94, 78% (18/18).
+    - Black holes (2 days): 124.1s, $0.61, 100% (4/4).
+- Leftovers (why 1.6 stays `[~]`):
+  - `audit:course` found 27 `##` sections without a citation, 25 of them in Excel (capstone steps, recaps, "XLSX vs. CSV"). That breaks the CLAUDE.md rule "every factual lesson section cites at least one stored source" for at least some sections.
+  - The 1.6 quality-review checkpoint is the user's to do.
+- SPEC targets missed:
+  - Syllabus time: 24.5–64.0s against < 20s.
+  - Flag rate: 17% (Alexander) and 22% (Excel) against < 5%.
+  - Cost per 7 days: $1.94–$2.73 against < $0.75. Being worked on next.
+  - Correct quiz answers are skewed toward "b" (Excel 50/70).
+- Decisions: none.

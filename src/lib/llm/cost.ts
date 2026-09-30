@@ -6,6 +6,8 @@ export interface TokenUsage {
 }
 
 export interface LlmCallLog extends TokenUsage {
+  /** The part of outputTokens spent on thinking (0 when the API doesn't report it). */
+  thinkingTokens: number;
   agent: string;
   model: string;
   costUsd: number | null;
@@ -53,7 +55,7 @@ export function formatCostUsd(costUsd: number | null): string {
 export function logUsage(log: LlmCallLog): void {
   console.info(
     `[llm] ${log.ok ? "ok" : "failed"} agent=${log.agent} model=${log.model} ` +
-      `in=${log.inputTokens} out=${log.outputTokens} cost=${formatCostUsd(log.costUsd)} ` +
+      `in=${log.inputTokens} out=${log.outputTokens} think=${log.thinkingTokens} cost=${formatCostUsd(log.costUsd)} ` +
       `attempts=${log.attempts} ${log.durationMs}ms`,
   );
 }

@@ -23,11 +23,41 @@ function firstWords(text: string, n: number): string {
   return text.split(/\s+/).filter(Boolean).slice(0, n).join(" ");
 }
 
+// One level of nested brackets in link text (e.g. "[[1]](#cite)") and of parentheses in the destination
+// (e.g. "wiki/Macedonia_(ancient_kingdom)"); never across a line break.
+const MD_IMAGE = /!\[[^\]\n]*\]\((?:[^()\n]|\([^()\n]*\))*\)/g;
+const MD_LINK = /\[((?:[^[\]\n]|\[[^[\]\n]*\])*)\]\((?:[^()\n]|\([^()\n]*\))*\)/g;
+const AUTOLINK = /<https?:\/\/[^>\s]*>/g;
+/** Link text that is page furniture, not prose: footnote markers, "edit", "^". */
+const FURNITURE_LINK_TEXT = /^\s*(?:\[?\s*(?:\d+|[a-z]|note \d+|citation needed|edit)\s*\]?|\^)?\s*$/i;
+
+const TABLE_SEPARATOR_CELLS = /\|(?:[ \t]*:?-{3,}:?[ \t]*\|)+/g;
+const EMPTY_TABLE_CELLS = /\|(?:[ \t]*\|)+/g;
+
 /**
- * Keeps the paragraphs that mention the most terms, in original order, up to maxWords.
+ * Replaces markdown links with their text and drops images, autolinks, footnote/edit links,
+ * table separator rows and empty table cells (cell text is kept).
+ * Tavily's raw content is markdown: in Wikipedia pages about half the characters are link URLs
+ * and titles, which cost tokens and carry nothing the Lesson Writer can use.
+ */
+export function stripMarkdownNoise(text: string): string {
+  return text
+    .replace(MD_IMAGE, "")
+    .replace(MD_LINK, (_, linkText: string) => (FURNITURE_LINK_TEXT.test(linkText) ? "" : linkText))
+    .replace(AUTOLINK, "")
+    .replace(/\[\s*\]/g, "")
+    .replace(TABLE_SEPARATOR_CELLS, "|")
+    .replace(EMPTY_TABLE_CELLS, "|")
+    .replace(/[ \t]+([,.;:])/g, "$1")
+    .replace(/[ \t]{2,}/g, " ");
+}
+
+/**
+ * Strips markdown noise, then keeps the paragraphs that mention the most terms, in original order, up to maxWords.
  * Falls back to the opening maxWords when no paragraph mentions any term.
  */
-export function trimGrounding(raw: string, terms: string[], maxWords = MAX_GROUNDING_WORDS): string {
+export function trimGrounding(markdown: string, terms: string[], maxWords = MAX_GROUNDING_WORDS): string {
+  const raw = stripMarkdownNoise(markdown);
   const paragraphs = raw
     .split(/\n\s*\n|\r\n\s*\r\n/)
     .map((p) => p.replace(/\s+/g, " ").trim())

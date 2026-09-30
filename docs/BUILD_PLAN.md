@@ -33,17 +33,17 @@ Goal: prove the course quality before building any app. Output is a JSON file yo
 **Prompt:**
 > Do task 1.2. Create Zod schemas for every agent output in docs/AGENTS.md and write the prompt templates, following the rules listed for each agent. Put example valid/invalid outputs in tests/fixtures.
 
-### [~] 1.3 Research clients
+### [x] 1.3 Research clients
 **Acceptance:** `tavily.ts`, `youtube.ts`, `wikipedia.ts` each export a typed search function with timeouts and error handling; YouTube stays within 8 searches per course, caches by query, and returns no videos (not an error) when quota runs out; `scoring.ts` implements the scoring and shingle-dedupe rules with unit tests; a smoke script prints top 5 scored sources for "Alexander the Great" and the YouTube quota units it used.
 **Prompt:**
 > Do task 1.3. Build the three research clients and the source scoring module per docs/ARCHITECTURE.md. Use MODEL_FAST relevance scoring (no embeddings; see the embeddings note). Then run the smoke test and show me the output.
 
-### [~] 1.4 Planner, Researcher, Curriculum Designer
+### [x] 1.4 Planner, Researcher, Curriculum Designer
 **Acceptance:** each agent function works end to end on a real topic; the researcher supports light and deep modes; curriculum days match the time budget's slots and totals are within ±10% (enforced in code with one retry, then snapped to the slots); light research + planner + curriculum time is printed.
 **Prompt:**
 > Do task 1.4. Implement planner.ts, researcher.ts, and curriculum.ts per docs/AGENTS.md using the LLM client. Enforce the time-total rule in code. Show me the syllabus output for "Excel for beginners, 7 days, 30 min/day".
 
-### [~] 1.5 Lesson Writer, Examiner, Fact-Checker
+### [x] 1.5 Lesson Writer, Examiner, Fact-Checker
 **Acceptance:** generating one lesson produces markdown with numbered citations that map to real sources, 3–5 quiz questions, and a fact-check result; the rewrite-on-fail loop works (test with a fixture that fails).
 **Prompt:**
 > Do task 1.5. Implement lessonWriter.ts, examiner.ts, and factChecker.ts with the rewrite loop from docs/AGENTS.md. Generate Day 1 Lesson 1 for the Excel syllabus and show me the full output.

@@ -34,6 +34,8 @@ export async function writeLesson(input: LessonWriterPromptInput, deps: AgentDep
   return (deps.callJson ?? callJson)({
     agent: "lessonWriter",
     model: "smart",
+    // About half of the default (high) effort's output was thinking; medium cuts that (decisions log, 2026-09-30).
+    effort: "medium",
     system,
     prompt,
     schema: lessonOutputSchemaFor(input.sources.length, input.lesson.includesPractice),
