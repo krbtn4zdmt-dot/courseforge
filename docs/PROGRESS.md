@@ -30,3 +30,9 @@ Format:
 - Evidence: typecheck and lint pass; 46/46 tests pass (34 new: success, invalid-JSON retry, Zod retry with errors appended, final validation failure, network backoff 1s/2s/4s, giving up after 3 retries, no retry on 400, refusal, truncation, missing env var, fallback iteration pricing, unknown-model cost, cost math).
 - Leftovers: no live API call yet (no `ANTHROPIC_API_KEY` in this environment); the first real call in task 1.4 should confirm structured outputs + `fallbacks: "default"` work together. Prices in `cost.ts` carry a TODO to confirm (last checked 2026-09-25). Thinking/effort left at model defaults.
 - Decisions: four entries added to the ARCHITECTURE.md decisions log (structured outputs + Zod, client-owned retries, refusal/truncation handling with API fallbacks, `{ data, usage }` return and log shape).
+
+## 2026-09-30: Task 1.1: Time-budget engine
+- Changed: `src/lib/pipeline/timeBudget.ts`: `computeTimeBudget({ days, minutesPerDay, topicType })` returns `{ dayNumber, reviewMinutes, lessons: { estMinutes, readingMinutes, mediaMinutes, practiceMinutes }[] }[]`, plus exported helpers (`reviewMinutesFor`, `splitTeachingMinutes`, `splitLesson`) and constants. Integer-only rounding; input validation (`RangeError`); the function asserts its own invariants. Tests in `tests/unit/pipeline/timeBudget.test.ts`.
+- Evidence: 26 new tests, 72/72 total pass; typecheck and lint pass. Covers the worked-examples table (15/30/90 min over 5 days), 1-, 2-, 7-, 30- and 60-day courses, review rounding (including 30 min → exactly 9), knowledge/skill/hybrid splits, reading absorbing rounding, input validation, and a sweep of every minutesPerDay 15–90 × every length 1–60 × all topic types (347,760 days): every day sums exactly, every lesson is 10–25 min, every lesson's parts sum to its estMinutes.
+- Leftovers: none.
+- Decisions: one entry added to the ARCHITECTURE.md decisions log (final-day rule precedence for 2-day courses; integer math).
