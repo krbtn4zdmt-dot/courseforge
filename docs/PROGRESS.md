@@ -210,3 +210,21 @@ Format:
   - Haiku as lesson writer is not adopted: its lessons are too short. It could be retried with a length-enforcing retry.
   - $0.75 still needs a product decision: a cheaper writer, shorter lessons, or a revised target.
 - Decisions: one row added to the ARCHITECTURE.md decisions log.
+
+## 2026-09-30: Cost overrun, full rerun after credits were added (supports 1.6 and the SPEC cost target)
+- Evidence: all lessons completed on commit `1336a11`: stripped grounding plus Sonnet 5.5 at `medium` effort.
+  - Excel (7 days): 309.8s, $1.67 (was $1.94, −14%). Lesson writer: 25 calls, $1.21 (was 23 calls, $1.43). 7 rewrites (was 5). Flag rate 17% (was 22%). 23 audit problems, including 4 lessons under the word range (was 0).
+  - Alexander (3 days): 205.7s, $1.11 (was $1.17, −5%), which is $2.58 per 7 days. Lesson writer: 11 calls, $0.84 (was 7 calls, $0.81). 5 rewrites (was 1). **Flag rate 83% (was 17%).**
+  - Per lesson-writer call: Excel −22% ($0.0486 vs $0.0624), Alexander −34% ($0.0767 vs $0.1156). Extra rewrites ate most of the saving.
+- Findings:
+  - Rewrites, not first drafts, now decide course cost. Each rewrite is a full extra lesson-writer call.
+  - Of the 6 flagged Alexander claims:
+    - 1 is a real error: Gaugamela "October 31"; Britannica in the grounding says October 1.
+    - 2 are stated in stored grounding: Pindar's house spared, and "second and final battle between the two kings". Likely fact-checker false positives, unless those passages weren't in that lesson's sources.
+    - The rest aren't clearly supported by the passages.
+  - Whether `medium` effort raised the flag rate is not established. It's one run with 6 lessons, and the Excel flag rate went down.
+- Leftovers:
+  - Isolate the effort change: rerun with stripping at the default effort.
+  - Look into fact-checker false positives, which belong to the flag-rate work.
+  - $0.75 is still far off and needs a product decision.
+- Decisions: none yet; `medium` effort stays pending that isolation run.
