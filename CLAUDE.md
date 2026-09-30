@@ -37,7 +37,7 @@ pnpm gen:course "<topic>" --days 3 --minutes 30 --level beginner   # CLI pipelin
 pnpm research:smoke "<topic>"              # research clients + scoring smoke test (task 1.3)
 pnpm gen:syllabus "<topic>" --days 7 --minutes 30 --level beginner --goal understand [--out out/x.json]
 pnpm gen:lesson --from out/x.json --day 1 --lesson 1   # one lesson (or pass the topic + intake flags)
-pnpm check:live                          # preflight (env, hosts, Anthropic key) + all Phase 1 live checks in order; logs to out/live-checks/
+pnpm check:live                          # preflight (env, hosts, Anthropic key and models) + all Phase 1 live checks in order; logs to out/live-checks/
 pnpm audit:course out/<slug>.json        # mechanical quality audit of a generated course (content rules, SPEC targets)
 npx inngest-cli dev      # local Inngest dev server (Phase 3+)
 ```
