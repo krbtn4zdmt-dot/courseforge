@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
 
-import { ANTHROPIC_API_KEY_VARS, findAnthropicApiKey, findAnthropicWorkspaceId } from "./apiKey";
+import { ANTHROPIC_API_KEY_VARS, anthropicDefaultHeaders, findAnthropicApiKey } from "./apiKey";
 import { estimateCostUsd, logUsage, type LlmCallLog, type TokenUsage } from "./cost";
 
 export type ModelTier = "smart" | "fast";
@@ -247,11 +247,10 @@ let defaultClient: ReturnType<typeof createLlmClient> | undefined;
  */
 export function callJson<T>(opts: CallJsonOptions<T>): Promise<T> {
   if (!defaultClient) {
-    const workspaceId = findAnthropicWorkspaceId(process.env);
     const anthropic = new Anthropic({
       apiKey: resolveAnthropicApiKey(),
       maxRetries: 0,
-      ...(workspaceId && { defaultHeaders: { "anthropic-workspace-id": workspaceId } }),
+      defaultHeaders: anthropicDefaultHeaders(process.env),
     });
     defaultClient = createLlmClient({ createMessage: (params) => anthropic.messages.stream(params).finalMessage() });
   }

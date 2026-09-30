@@ -29,3 +29,9 @@ export function findAnthropicApiKey(env: Record<string, string | undefined>): st
 export function findAnthropicWorkspaceId(env: Record<string, string | undefined>): string | undefined {
   return firstSet(env, ANTHROPIC_WORKSPACE_ID_VARS);
 }
+
+/** Headers every Anthropic request needs beyond the key: anthropic-workspace-id when a workspace ID is set. */
+export function anthropicDefaultHeaders(env: Record<string, string | undefined>): Record<string, string> {
+  const workspaceId = findAnthropicWorkspaceId(env);
+  return workspaceId ? { "anthropic-workspace-id": workspaceId } : {};
+}

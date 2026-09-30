@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { findAnthropicApiKey, findAnthropicWorkspaceId } from "@/lib/llm/apiKey";
+import { anthropicDefaultHeaders, findAnthropicApiKey, findAnthropicWorkspaceId } from "@/lib/llm/apiKey";
 
 describe("findAnthropicApiKey", () => {
   it("reads ANTHROPIC_API_KEY", () => {
@@ -42,5 +42,15 @@ describe("findAnthropicWorkspaceId", () => {
 
   it("returns undefined when neither is set", () => {
     expect(findAnthropicWorkspaceId({})).toBeUndefined();
+  });
+});
+
+describe("anthropicDefaultHeaders", () => {
+  it("sends the workspace ID when set", () => {
+    expect(anthropicDefaultHeaders({ ANTHROPIC_WORKSPACE_ID: "wrkspc_std" })).toEqual({ "anthropic-workspace-id": "wrkspc_std" });
+  });
+
+  it("is empty when no workspace ID is set", () => {
+    expect(anthropicDefaultHeaders({ ANTHROPIC_WORKSPACE_ID: " " })).toEqual({});
   });
 });

@@ -142,5 +142,15 @@ Format:
 - Context: `pnpm check:live` passed its preflight but step 2 (`gen:syllabus`) failed. The API returned 400 "This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header". Step 1 only "passed" because the failed relevance batch fell back to 0.5.
 - Changed: `src/lib/llm/apiKey.ts` adds `ANTHROPIC_WORKSPACE_ID_VARS` and `findAnthropicWorkspaceId`, with the same precedence and blank/trim handling as the key. `callJson` sends the ID as `anthropic-workspace-id` via the SDK's `defaultHeaders` when set, and sends nothing extra otherwise. `.env.example` and CLAUDE.md list the optional variables.
 - Evidence: `pnpm test` 321/321 passed (4 new in `apiKey.test.ts`). Typecheck and lint are clean. A real `callJson` sent to a local stub via `ANTHROPIC_BASE_URL` sent no header with the variable unset, and sent `anthropic-workspace-id=wrkspc_test123` with it set.
-- Leftovers: the live runs for 1.3–1.6 need a workspace ID set in the environment (or a workspace-scoped key), then `pnpm check:live --from 2`. The `check:live` preflight doesn't catch an unscoped key, since it never calls the API with the key.
+- Leftovers: the live runs for 1.3–1.6 need a workspace ID set in the environment (or a workspace-scoped key), then `pnpm check:live --from 2`. (The preflight gap noted at the time is fixed in the next entry.)
 - Decisions: one row added to the ARCHITECTURE.md decisions log (workspace ID lookup and header).
+
+## 2026-09-30: `check:live` preflight verifies the Anthropic key (supports the pending 1.3–1.6 live runs)
+- Context: the preflight only checked that env vars were set and hosts were reachable, so an unscoped key passed it and failed at step 2.
+- Changed:
+  - New `src/lib/llm/accessCheck.ts`. `checkAnthropicAccess` makes one free authenticated request (list one model) with the same key and headers as `callJson`. `describeAnthropicAccessError` turns failures into preflight problems: an unscoped key names the two workspace variables, a 401 says the key was rejected, and other failures give the API's message, adding "check the workspace ID too" when one is set.
+  - `anthropicDefaultHeaders` in `apiKey.ts` is now the one place that builds the workspace header; `callJson` and the preflight both use it.
+  - The preflight runs the check when `api.anthropic.com` is reachable.
+- Evidence: `pnpm test` 330/330 passed (9 new: 7 in `accessCheck.test.ts`, 2 for `anthropicDefaultHeaders`). Typecheck and lint are clean. Live runs of `pnpm check:live --only 99` exit 1. With the current key it says "the Anthropic API key is not scoped to a workspace: set COURSEFORGE_ANTHROPIC_WORKSPACE_ID or ANTHROPIC_WORKSPACE_ID…". With `ANTHROPIC_WORKSPACE_ID=wrkspc_bogus` it says "(400: anthropic-workspace-id header must be a valid workspace ID.); check the workspace ID too", which proves the header is sent. The `callJson` stub probe still sends the header only when the variable is set.
+- Leftovers: the live runs for 1.3–1.6 still need a real workspace ID in the environment.
+- Decisions: one row added to the ARCHITECTURE.md decisions log (authenticated preflight request).

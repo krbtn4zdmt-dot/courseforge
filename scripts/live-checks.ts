@@ -1,5 +1,5 @@
 // Live checks for tasks 1.3–1.6: pnpm check:live [--from <step>] [--only <step>] [--skip-preflight]
-// Preflight (env vars set, API hosts reachable), then each check in order; stops at the first failure.
+// Preflight (env vars set, API hosts reachable, Anthropic key accepted), then each check in order; stops at the first failure.
 // Output of every step is saved to out/live-checks/<timestamp>/<n>-<name>.log.
 import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
@@ -7,6 +7,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
+import { checkAnthropicAccess } from "@/lib/llm/accessCheck";
 import { ANTHROPIC_API_KEY_VARS, findAnthropicApiKey } from "@/lib/llm/apiKey";
 
 const REQUIRED_ENV = ["TAVILY_API_KEY", "YOUTUBE_API_KEY", "MODEL_SMART", "MODEL_FAST"];
@@ -59,6 +60,11 @@ async function preflight(): Promise<string[]> {
       }
     }),
   );
+  // A reachable host doesn't prove the key works: an unscoped or revoked key only fails once a request is authenticated.
+  if (!problems.some((p) => p.startsWith("api.anthropic.com "))) {
+    const access = await checkAnthropicAccess(process.env);
+    if (access) problems.push(access);
+  }
   return problems;
 }
 
@@ -84,7 +90,7 @@ async function main() {
     console.error("Set the variables in .env.local (or the cloud environment settings) and allow the hosts, then rerun.");
     process.exit(1);
   }
-  console.log("Preflight OK: env vars set, API hosts reachable.\n");
+  console.log("Preflight OK: env vars set, API hosts reachable, Anthropic key accepted.\n");
 
   const dir = path.join("out", "live-checks", new Date().toISOString().replace(/[:.]/g, "-"));
   await mkdir(dir, { recursive: true });
