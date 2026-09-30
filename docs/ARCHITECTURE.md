@@ -224,7 +224,7 @@ Enable Row Level Security on all user tables: users can only read/write rows tie
 **Quiz answers:** `questions.correct_option_id` is readable by the course owner under RLS, so the answer can be found in the browser. That's accepted for the MVP: quizzes are self-study with nothing at stake, and it keeps feedback instant. Move answer checking to a server route if quizzes ever gate anything.
 
 ## Model usage
-- `MODEL_SMART` (e.g. `claude-sonnet-5`): planner, curriculum designer, lesson writer
+- `MODEL_SMART` (e.g. `claude-sonnet-5-5`): planner, curriculum designer, lesson writer
 - `MODEL_FAST` (e.g. `claude-haiku-4-5-20251001`): intake parsing, examiner, fact-checker, relevance scoring
 - Verify current model names in Anthropic's docs before setting env vars.
 
@@ -240,3 +240,6 @@ Enable Row Level Security on all user tables: users can only read/write rows tie
 | 2026-09-24 | Fact-Checker gets trimmed source passages (`grounding`), not just excerpts, and fails on contradictions, not every unsupported claim | Short excerpts would flag most true claims as unsupported, making the < 5% target impossible |
 | 2026-09-24 | Day N unlocks when day N−1 is complete | Matches just-in-time generation (N+1 is ready by then) and keeps pacing |
 | 2026-09-24 | Quiz answers readable client-side in MVP | Self-study only; instant feedback without a round trip |
+| 2026-09-30 | Next.js 16 with `agentRules: false` in `next.config.ts` | `next dev` otherwise rewrites CLAUDE.md with its own agent-rules block; CLAUDE.md points to the version-matched docs instead |
+| 2026-09-30 | `pnpm typecheck` runs `next typegen` before `tsc` | Next 16's `LayoutProps`/`PageProps` globals are generated; a fresh checkout fails `tsc` without them |
+| 2026-09-30 | shadcn `base-nova` preset (Base UI primitives, `cn` package) | Current shadcn default; no Radix dependency |

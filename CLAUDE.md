@@ -16,7 +16,7 @@ An app that builds a personalized, time-boxed course on any topic. The user says
 
 ## Tech stack
 
-- **Framework:** Next.js (App Router) + TypeScript (strict mode)
+- **Framework:** Next.js 16 (App Router) + TypeScript (strict mode). Next 16 differs from older versions (e.g. async `params`); check `node_modules/next/dist/docs/` before using an unfamiliar API.
 - **UI:** Tailwind CSS + shadcn/ui
 - **Database/Auth:** Supabase (Postgres + Auth; no pgvector in MVP, see ARCHITECTURE.md)
 - **LLM:** Anthropic TypeScript SDK (`@anthropic-ai/sdk`)
