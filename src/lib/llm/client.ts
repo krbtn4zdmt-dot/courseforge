@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
 
-import { ANTHROPIC_API_KEY_VARS, findAnthropicApiKey } from "./apiKey";
+import { ANTHROPIC_API_KEY_VARS, findAnthropicApiKey, findAnthropicWorkspaceId } from "./apiKey";
 import { estimateCostUsd, logUsage, type LlmCallLog, type TokenUsage } from "./cost";
 
 export type ModelTier = "smart" | "fast";
@@ -242,11 +242,17 @@ let defaultClient: ReturnType<typeof createLlmClient> | undefined;
 /**
  * The single entry point for LLM calls. Retries are handled here, so the SDK's own are off.
  * Requests stream under the hood: the SDK refuses non-streaming calls whose max_tokens could
- * take over 10 minutes (~21k tokens), and long syllabi need more than that.
+ * take over 10 minutes (~21k tokens), and long syllabi need more than that. If a workspace ID is
+ * set (ANTHROPIC_WORKSPACE_ID_VARS), every request carries it as anthropic-workspace-id.
  */
 export function callJson<T>(opts: CallJsonOptions<T>): Promise<T> {
   if (!defaultClient) {
-    const anthropic = new Anthropic({ apiKey: resolveAnthropicApiKey(), maxRetries: 0 });
+    const workspaceId = findAnthropicWorkspaceId(process.env);
+    const anthropic = new Anthropic({
+      apiKey: resolveAnthropicApiKey(),
+      maxRetries: 0,
+      ...(workspaceId && { defaultHeaders: { "anthropic-workspace-id": workspaceId } }),
+    });
     defaultClient = createLlmClient({ createMessage: (params) => anthropic.messages.stream(params).finalMessage() });
   }
   return defaultClient.callJson(opts);

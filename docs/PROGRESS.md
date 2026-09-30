@@ -137,3 +137,10 @@ Format:
 - Evidence: `pnpm test` 317/317 passed (5 new in `apiKey.test.ts`: either name, precedence, blank and whitespace values, neither set). Typecheck and lint are clean. `pnpm check:live --only 99` with neither set reports "COURSEFORGE_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY is not set"; with only `COURSEFORGE_ANTHROPIC_API_KEY` set, the preflight passes (all four hosts reachable, no steps run).
 - Leftovers: the live runs for 1.3–1.6 still need a session started after the key is saved.
 - Decisions: one row added to the ARCHITECTURE.md decisions log (key lookup order).
+
+## 2026-09-30: Workspace header for unscoped API keys (supports the pending 1.3–1.6 live runs)
+- Context: `pnpm check:live` passed its preflight but step 2 (`gen:syllabus`) failed. The API returned 400 "This API key is not scoped to a workspace, so this request must include the anthropic-workspace-id header". Step 1 only "passed" because the failed relevance batch fell back to 0.5.
+- Changed: `src/lib/llm/apiKey.ts` adds `ANTHROPIC_WORKSPACE_ID_VARS` and `findAnthropicWorkspaceId`, with the same precedence and blank/trim handling as the key. `callJson` sends the ID as `anthropic-workspace-id` via the SDK's `defaultHeaders` when set, and sends nothing extra otherwise. `.env.example` and CLAUDE.md list the optional variables.
+- Evidence: `pnpm test` 321/321 passed (4 new in `apiKey.test.ts`). Typecheck and lint are clean. A real `callJson` sent to a local stub via `ANTHROPIC_BASE_URL` sent no header with the variable unset, and sent `anthropic-workspace-id=wrkspc_test123` with it set.
+- Leftovers: the live runs for 1.3–1.6 need a workspace ID set in the environment (or a workspace-scoped key), then `pnpm check:live --from 2`. The `check:live` preflight doesn't catch an unscoped key, since it never calls the API with the key.
+- Decisions: one row added to the ARCHITECTURE.md decisions log (workspace ID lookup and header).

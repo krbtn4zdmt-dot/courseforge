@@ -61,4 +61,4 @@ npx inngest-cli dev      # local Inngest dev server (Phase 3+)
 
 ## Environment variables
 
-See `.env.example`. Required: `ANTHROPIC_API_KEY` (or `COURSEFORGE_ANTHROPIC_API_KEY` where the host reserves that name), `TAVILY_API_KEY`, `YOUTUBE_API_KEY`, `MODEL_SMART`, `MODEL_FAST`. From Phase 2: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. From Phase 3: `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`.
+See `.env.example`. Required: `ANTHROPIC_API_KEY` (or `COURSEFORGE_ANTHROPIC_API_KEY` where the host reserves that name), `TAVILY_API_KEY`, `YOUTUBE_API_KEY`, `MODEL_SMART`, `MODEL_FAST`. Optional: `ANTHROPIC_WORKSPACE_ID` (or `COURSEFORGE_ANTHROPIC_WORKSPACE_ID`), needed only when the key is not scoped to a workspace. From Phase 2: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`. From Phase 3: `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`.
