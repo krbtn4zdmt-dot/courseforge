@@ -8,6 +8,11 @@ describe("estimateCostUsd", () => {
     expect(estimateCostUsd("claude-sonnet-5", { inputTokens: 1_000_000, outputTokens: 500_000 })).toBeCloseTo(7);
   });
 
+  it("prices Sonnet 5.5 the same as Sonnet 5", () => {
+    const usage = { inputTokens: 1_000_000, outputTokens: 500_000 };
+    expect(estimateCostUsd("claude-sonnet-5-5", usage)).toBeCloseTo(7);
+  });
+
   it("prices both Haiku 4.5 IDs the same", () => {
     const usage = { inputTokens: 10_000, outputTokens: 2_000 };
     expect(estimateCostUsd("claude-haiku-4-5", usage)).toBeCloseTo(0.02);

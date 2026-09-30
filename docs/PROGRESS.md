@@ -158,5 +158,12 @@ Format:
 ## 2026-09-30: `check:live` preflight also verifies `MODEL_SMART` and `MODEL_FAST` (supports the pending 1.3–1.6 live runs)
 - Changed: once the key check passes, `checkAnthropicAccess` looks up both configured models (`GET /v1/models/{id}`, free) and now returns a list of problems. An unknown ID is reported as `MODEL_X is "<id>", which isn't a model this key can use`; other failures are prefixed with the variable and model. If the key check fails, only that is reported and no models are looked up. Unset models are left to the env-var check. The decisions-log row for the preflight is updated.
 - Evidence: `pnpm test` 334/334 passed (`accessCheck.test.ts` now has 11 tests: both models looked up, key failure short-circuits, unknown model reported, unset model skipped, no key means no request, plus `describeModelError`). Typecheck and lint are clean. `pnpm check:live --only 99` against a local stub of the models API (via `ANTHROPIC_BASE_URL`) reported `MODEL_SMART is "claude-nope-9", which isn't a model this key can use` and exited 1. With two known models it printed "Preflight OK: … Anthropic key and models accepted". Every stub request carried the workspace header. Against the real API with the current env, it still reports only the unscoped key.
-- Leftovers: whether `MODEL_SMART=claude-sonnet-5-5` in this environment is valid can't be checked until the key works. That model also has no entry in the price table in `src/lib/llm/cost.ts`, so its cost logs as unknown.
+- Leftovers: whether `MODEL_SMART=claude-sonnet-5-5` in this environment is valid can't be checked until the key works. (Its missing price is fixed in the next entry.)
 - Decisions: the decisions-log row for the preflight now covers the model checks.
+
+## 2026-09-30: Claude Sonnet 5.5 in the price table (supports the pending 1.3–1.6 live runs)
+- Context: this environment sets `MODEL_SMART=claude-sonnet-5-5`, which had no price, so every smart-model call logged its cost as unknown ("$?"). That made the per-course cost target unmeasurable.
+- Changed: `src/lib/llm/cost.ts` adds `claude-sonnet-5-5` at $2 input / $10 output per million tokens (the same as Sonnet 5; from Anthropic's current model table, cached 2026-09-25). The table's "last checked" date is now 2026-09-30.
+- Evidence: `pnpm test` 335/335 passed (1 new in `cost.test.ts`: 1M in + 0.5M out on Sonnet 5.5 = $7). Typecheck and lint are clean.
+- Leftovers: the pre-launch TODO to confirm every price against the pricing page still stands.
+- Decisions: none.

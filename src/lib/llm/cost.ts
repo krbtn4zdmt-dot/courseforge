@@ -20,8 +20,9 @@ interface ModelPrice {
 }
 
 // USD per million tokens, keyed by the model ID set in MODEL_SMART / MODEL_FAST.
-// TODO: confirm against https://www.anthropic.com/pricing before launch (last checked 2026-09-24).
+// TODO: confirm against https://www.anthropic.com/pricing before launch (last checked 2026-09-30).
 const PRICES: Record<string, ModelPrice> = {
+  "claude-sonnet-5-5": { inputPerMTok: 2, outputPerMTok: 10 },
   "claude-sonnet-5": { inputPerMTok: 2, outputPerMTok: 10 },
   "claude-haiku-4-5": { inputPerMTok: 1, outputPerMTok: 5 },
   "claude-haiku-4-5-20251001": { inputPerMTok: 1, outputPerMTok: 5 },
