@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
 
+import { ANTHROPIC_API_KEY_VARS, findAnthropicApiKey } from "./apiKey";
 import { estimateCostUsd, logUsage, type LlmCallLog, type TokenUsage } from "./cost";
 
 export type ModelTier = "smart" | "fast";
@@ -67,6 +68,12 @@ export function resolveModel(tier: ModelTier): string {
   const model = process.env[envVar];
   if (!model) throw new LlmConfigError(`${envVar} is not set (see .env.example)`);
   return model;
+}
+
+export function resolveAnthropicApiKey(): string {
+  const apiKey = findAnthropicApiKey(process.env);
+  if (!apiKey) throw new LlmConfigError(`${ANTHROPIC_API_KEY_VARS.join(" or ")} is not set (see .env.example)`);
+  return apiKey;
 }
 
 /** Error types the API can send mid-stream (as an SSE `error` event, so with no HTTP status) that are worth retrying. */
@@ -239,7 +246,7 @@ let defaultClient: ReturnType<typeof createLlmClient> | undefined;
  */
 export function callJson<T>(opts: CallJsonOptions<T>): Promise<T> {
   if (!defaultClient) {
-    const anthropic = new Anthropic({ maxRetries: 0 });
+    const anthropic = new Anthropic({ apiKey: resolveAnthropicApiKey(), maxRetries: 0 });
     defaultClient = createLlmClient({ createMessage: (params) => anthropic.messages.stream(params).finalMessage() });
   }
   return defaultClient.callJson(opts);

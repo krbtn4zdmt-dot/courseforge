@@ -7,7 +7,9 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
-const REQUIRED_ENV = ["ANTHROPIC_API_KEY", "TAVILY_API_KEY", "YOUTUBE_API_KEY", "MODEL_SMART", "MODEL_FAST"];
+import { ANTHROPIC_API_KEY_VARS, findAnthropicApiKey } from "@/lib/llm/apiKey";
+
+const REQUIRED_ENV = ["TAVILY_API_KEY", "YOUTUBE_API_KEY", "MODEL_SMART", "MODEL_FAST"];
 const HOSTS = ["https://api.anthropic.com", "https://api.tavily.com", "https://www.googleapis.com", "https://en.wikipedia.org"];
 
 interface Step {
@@ -44,6 +46,7 @@ const { values } = parseArgs({
 
 async function preflight(): Promise<string[]> {
   const problems = REQUIRED_ENV.filter((v) => !process.env[v]).map((v) => `${v} is not set`);
+  if (!findAnthropicApiKey(process.env)) problems.unshift(`${ANTHROPIC_API_KEY_VARS.join(" or ")} is not set`);
   await Promise.all(
     HOSTS.map(async (host) => {
       try {

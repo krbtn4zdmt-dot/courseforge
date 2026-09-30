@@ -130,3 +130,10 @@ Format:
   - Cost is likely over the $0.75 per 7-day target (estimated $1.0–1.3).
   - Pending decision: should a lesson the audit finds copying 20+ words from a source be rewritten automatically?
 - Decisions: four decisions-log rows updated in place (YouTube, relevance, failed queries, lesson sources) and six added (streaming and max tokens, the rewrite-failure policy, subtopic-name matching, Wikipedia search, code-aware markdown, the audit).
+
+## 2026-09-30: API-key fallback for hosted environments (supports the pending 1.3–1.6 live runs)
+- Context: the branch with tasks 0.1–1.6 was fast-forwarded into `claude/charming-heisenberg-iy5l4w`. The cloud environment warns that `ANTHROPIC_API_KEY` is reserved for Claude Code's own auth, and the running session still saw it as unset, so the app now also accepts an app-specific name.
+- Changed: `src/lib/llm/apiKey.ts` (`ANTHROPIC_API_KEY_VARS`, `findAnthropicApiKey`). `callJson` passes the resolved key to the SDK and throws `LlmConfigError` naming both variables if neither is set. The `check:live` preflight accepts either name. `.env.example` and CLAUDE.md list the alternative.
+- Evidence: `pnpm test` 317/317 passed (5 new in `apiKey.test.ts`: either name, precedence, blank and whitespace values, neither set). Typecheck and lint are clean. `pnpm check:live --only 99` with neither set reports "COURSEFORGE_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY is not set"; with only `COURSEFORGE_ANTHROPIC_API_KEY` set, the preflight passes (all four hosts reachable, no steps run).
+- Leftovers: the live runs for 1.3–1.6 still need a session started after the key is saved.
+- Decisions: one row added to the ARCHITECTURE.md decisions log (key lookup order).
