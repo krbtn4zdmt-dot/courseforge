@@ -86,7 +86,7 @@ Rules: each day has the same number of items, in the same order and of the same 
   citedSourceIndexes: number[]
 }
 ```
-Rules: original wording only (no copied sentences; quotes under 15 words, attributed); match reading level to user level; open with why it matters; end with a 3-bullet recap; length is `readingMinutes` × 150–200 words; add the sensitive-domain disclaimer when flagged.
+Rules: original wording only (no copied sentences; quotes under 15 words, attributed); match reading level to user level; open with why it matters; end with a 3-bullet recap; length is `readingMinutes` × 150–200 words. Don't write a disclaimer: for a flagged `sensitiveDomain`, code adds the fixed disclaimer from `src/lib/pipeline/disclaimers.ts` to the lesson.
 
 ## 6. Examiner (`examiner.ts`), MODEL_FAST
 **Input:** lesson content, objectives
@@ -94,7 +94,7 @@ Rules: original wording only (no copied sentences; quotes under 15 words, attrib
 ```ts
 { questions: { prompt: string, options: {id: string, text: string}[], correctOptionId: string, explanation: string }[] }
 ```
-Rules: 3–5 questions per lesson; one question per objective minimum; plausible distractors; no "all of the above"; explanations reference the lesson.
+Rules: 3–5 questions per lesson; one question per objective minimum; 4 options per question (the schema accepts 3–5) with unique ids; plausible distractors; no "all/none of the above"; explanations reference the lesson.
 
 ## 7. Fact-Checker (`factChecker.ts`), MODEL_FAST
 **Input:** lesson content + the `grounding` passages of the sources it cites, the user's level

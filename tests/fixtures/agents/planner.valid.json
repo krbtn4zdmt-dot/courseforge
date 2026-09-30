@@ -1,0 +1,21 @@
+{
+  "topicType": "knowledge",
+  "sensitiveDomain": null,
+  "subtopics": [
+    { "name": "Macedon and Philip II", "importance": 1, "prerequisites": [] },
+    { "name": "The conquest of the Persian Empire", "importance": 1, "prerequisites": ["Macedon and Philip II"] },
+    { "name": "Campaigns in Central Asia and India", "importance": 2, "prerequisites": ["The conquest of the Persian Empire"] },
+    { "name": "Death and legacy", "importance": 1, "prerequisites": ["Campaigns in Central Asia and India"] }
+  ],
+  "searchQueries": [
+    { "subtopic": "Macedon and Philip II", "queries": ["Philip II of Macedon military reforms", "Alexander the Great childhood Aristotle tutor"] },
+    { "subtopic": "The conquest of the Persian Empire", "queries": ["Alexander the Great Persian campaign Issus Gaugamela", "fall of the Achaemenid Empire Darius III"] },
+    { "subtopic": "Campaigns in Central Asia and India", "queries": ["Alexander the Great Battle of the Hydaspes Porus", "Alexander Bactria Sogdiana campaign", "Alexander army mutiny Hyphasis river"] },
+    { "subtopic": "Death and legacy", "queries": ["death of Alexander the Great Babylon 323 BC", "Hellenistic world after Alexander successor kingdoms"] }
+  ],
+  "commonMisconceptions": [
+    "Alexander conquered the whole known world.",
+    "Alexander was Greek in the same sense as Athenians.",
+    "His empire stayed united after his death."
+  ]
+}

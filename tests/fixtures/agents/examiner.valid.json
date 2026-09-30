@@ -1,0 +1,37 @@
+{
+  "questions": [
+    {
+      "prompt": "Why did the terrain at Issus help Alexander?",
+      "options": [
+        { "id": "a", "text": "The narrow plain limited the size advantage of the Persian army" },
+        { "id": "b", "text": "The river blocked the Persian cavalry from crossing" },
+        { "id": "c", "text": "The hills hid Alexander's reserves from view" },
+        { "id": "d", "text": "The marshland slowed the Persian chariots" }
+      ],
+      "correctOptionId": "a",
+      "explanation": "The lesson explains that the narrow coastal plain cancelled out Darius's larger army."
+    },
+    {
+      "prompt": "What broke the Persian line at Gaugamela?",
+      "options": [
+        { "id": "a", "text": "A night attack on the Persian camp" },
+        { "id": "b", "text": "A charge by Alexander's cavalry through the centre" },
+        { "id": "c", "text": "War elephants on the Macedonian flank" },
+        { "id": "d", "text": "A Persian general changing sides" }
+      ],
+      "correctOptionId": "b",
+      "explanation": "The lesson describes Alexander's cavalry charge breaking through the Persian centre."
+    },
+    {
+      "prompt": "What happened to the Persian heartland after Gaugamela?",
+      "options": [
+        { "id": "a", "text": "It was split between Darius's sons" },
+        { "id": "b", "text": "It was defended by a new Persian army" },
+        { "id": "c", "text": "It lay open to Alexander" },
+        { "id": "d", "text": "It rebelled against both sides" }
+      ],
+      "correctOptionId": "c",
+      "explanation": "The recap says that after Gaugamela the Persian heartland lay open."
+    }
+  ]
+}

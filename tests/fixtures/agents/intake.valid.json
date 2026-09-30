@@ -1,0 +1,10 @@
+{
+  "topic": "Alexander the Great",
+  "days": 3,
+  "minutesPerDay": 30,
+  "level": "beginner",
+  "goal": "understand",
+  "isAllowed": true,
+  "refusalMessage": null,
+  "nextQuestion": null
+}

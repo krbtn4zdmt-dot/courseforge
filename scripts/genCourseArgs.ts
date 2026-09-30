@@ -1,7 +1,6 @@
 import { parseArgs } from "node:util";
 
-export const LEVELS = ["beginner", "some_exposure", "refresher"] as const;
-export type Level = (typeof LEVELS)[number];
+import { LEVELS, type Level } from "../src/lib/pipeline/schemas";
 
 export type GenCourseArgs = {
   topic: string;

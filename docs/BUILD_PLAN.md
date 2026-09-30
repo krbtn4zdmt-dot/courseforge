@@ -28,7 +28,7 @@ Goal: prove the course quality before building any app. Output is a JSON file yo
 **Prompt:**
 > Do task 1.1. Implement the time-budget engine exactly per docs/ARCHITECTURE.md as a pure function with thorough tests.
 
-### [ ] 1.2 Zod schemas + prompt templates
+### [x] 1.2 Zod schemas + prompt templates
 **Acceptance:** `schemas.ts` defines every output shape in docs/AGENTS.md; `prompts/` has one template per agent (planner, curriculum, lessonWriter, examiner, factChecker, intake); schemas have unit tests with valid and invalid fixtures.
 **Prompt:**
 > Do task 1.2. Create Zod schemas for every agent output in docs/AGENTS.md and write the prompt templates, following the rules listed for each agent. Put example valid/invalid outputs in tests/fixtures.

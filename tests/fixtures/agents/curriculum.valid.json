@@ -1,0 +1,72 @@
+{
+  "courseTitle": "Alexander the Great in Three Days",
+  "courseSummary": "Follow Alexander from the Macedonian court to the edge of India. By the end you can explain how he built his empire, why it split apart, and what it left behind.",
+  "days": [
+    {
+      "dayNumber": 1,
+      "theme": "The making of a conqueror",
+      "lessons": [
+        {
+          "kind": "lesson",
+          "title": "Macedon before Alexander",
+          "objectives": ["Describe how Philip II strengthened Macedon", "Explain the role of the Macedonian phalanx"],
+          "estMinutes": 15,
+          "subtopics": ["Macedon and Philip II"],
+          "includesPractice": false
+        },
+        {
+          "kind": "lesson",
+          "title": "Crossing into Asia",
+          "objectives": ["Identify the goals of the invasion of Persia", "Summarize the Battle of the Granicus"],
+          "estMinutes": 15,
+          "subtopics": ["The conquest of the Persian Empire"],
+          "includesPractice": false
+        }
+      ]
+    },
+    {
+      "dayNumber": 2,
+      "theme": "Toppling Persia",
+      "lessons": [
+        {
+          "kind": "lesson",
+          "title": "Issus and Gaugamela",
+          "objectives": ["Compare the battles of Issus and Gaugamela", "Explain why Darius III lost"],
+          "estMinutes": 15,
+          "subtopics": ["The conquest of the Persian Empire"],
+          "includesPractice": false
+        },
+        {
+          "kind": "lesson",
+          "title": "To the Hydaspes and back",
+          "objectives": ["Trace the route east into Central Asia and India", "Explain why the army refused to go further"],
+          "estMinutes": 15,
+          "subtopics": ["Campaigns in Central Asia and India"],
+          "includesPractice": false
+        }
+      ]
+    },
+    {
+      "dayNumber": 3,
+      "theme": "Legacy",
+      "lessons": [
+        {
+          "kind": "lesson",
+          "title": "Death in Babylon and the successor kingdoms",
+          "objectives": ["Describe the circumstances of Alexander's death", "Explain how his empire divided"],
+          "estMinutes": 21,
+          "subtopics": ["Death and legacy"],
+          "includesPractice": false
+        },
+        {
+          "kind": "review",
+          "title": "Course review and final quiz",
+          "objectives": ["Recall the main stages of Alexander's campaigns", "Connect his conquests to the Hellenistic world"],
+          "estMinutes": 9,
+          "subtopics": ["Macedon and Philip II", "The conquest of the Persian Empire", "Campaigns in Central Asia and India", "Death and legacy"],
+          "includesPractice": false
+        }
+      ]
+    }
+  ]
+}
