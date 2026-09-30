@@ -52,6 +52,8 @@ Rules: size the subtopic list to the time budget. A 3-day course should not have
 **Process:** run searches in parallel (limit concurrency to 5), score sources (`research/scoring.ts`), dedupe, store. `light` runs one Tavily `basic` query per subtopic for the syllabus; `deep` runs everything else (Tavily `advanced` with raw content, YouTube, Wikipedia) after confirm. See Research details in ARCHITECTURE.md.
 **Output:** `{ subtopic: string, sources: Source[] }[]` where `Source = { url, title, type, score, excerpt, grounding }` (`grounding` is null in light mode)
 
+**Relevance rater** (`research/scoring.ts` → `rateRelevance`, prompt `prompts/relevance.ts`), MODEL_FAST: one batched call (up to 40 items) rates each source 0–1 against its subtopic from its title and excerpt. Output `{ ratings: { id, relevance }[] }`; the schema requires exactly one rating per item id.
+
 ## 4. Curriculum Designer (`curriculum.ts`), MODEL_SMART
 **Input:** planner output, source summaries (titles + short excerpts), time budget from `timeBudget.ts` (the exact slots per day), user level/goal, and on edits the previous syllabus plus the user's feedback
 **Output:**

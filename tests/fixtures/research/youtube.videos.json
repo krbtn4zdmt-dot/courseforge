@@ -1,0 +1,9 @@
+{
+  "kind": "youtube#videoListResponse",
+  "items": [
+    { "id": "vidGood", "contentDetails": { "duration": "PT12M30S" }, "statistics": { "viewCount": "2500000" } },
+    { "id": "vidShort", "contentDetails": { "duration": "PT1M" }, "statistics": { "viewCount": "900000" } },
+    { "id": "vidLong", "contentDetails": { "duration": "PT1H5M" }, "statistics": { "viewCount": "8000000" } },
+    { "id": "vidOther", "contentDetails": { "duration": "PT8M" }, "statistics": {} }
+  ]
+}

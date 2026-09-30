@@ -1,0 +1,10 @@
+{
+  "kind": "youtube#searchListResponse",
+  "items": [
+    { "id": { "kind": "youtube#video", "videoId": "vidGood" }, "snippet": { "title": "The Battle of Gaugamela explained", "channelId": "chanA", "channelTitle": "History Explained", "publishedAt": "2024-01-15T12:00:00Z" } },
+    { "id": { "kind": "youtube#video", "videoId": "vidShort" }, "snippet": { "title": "Gaugamela in 60 seconds", "channelId": "chanB", "channelTitle": "Quick History", "publishedAt": "2024-02-01T12:00:00Z" } },
+    { "id": { "kind": "youtube#video", "videoId": "vidLong" }, "snippet": { "title": "Alexander the Great full documentary", "channelId": "chanA", "channelTitle": "History Explained", "publishedAt": "2019-06-01T12:00:00Z" } },
+    { "id": { "kind": "youtube#video", "videoId": "vidOther" }, "snippet": { "title": "Persian army tactics at Gaugamela", "channelId": "chanC", "channelTitle": "Small Channel", "publishedAt": "2016-03-01T12:00:00Z" } },
+    { "id": { "kind": "youtube#channel", "channelId": "chanZ" }, "snippet": { "title": "A channel result", "channelId": "chanZ", "channelTitle": "Z", "publishedAt": "2020-01-01T00:00:00Z" } }
+  ]
+}

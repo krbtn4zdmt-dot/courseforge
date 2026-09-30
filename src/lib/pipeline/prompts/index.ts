@@ -10,4 +10,5 @@ export {
   type LessonWriterPromptInput,
 } from "./lessonWriter";
 export { plannerPrompt, PLANNER_SYSTEM, type PlannerPromptInput } from "./planner";
+export { relevancePrompt, RELEVANCE_SYSTEM, type RelevanceItem, type RelevancePromptInput } from "./relevance";
 export { JSON_ONLY, type PromptPair } from "./shared";

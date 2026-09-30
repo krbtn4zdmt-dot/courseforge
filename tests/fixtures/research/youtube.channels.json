@@ -1,0 +1,8 @@
+{
+  "kind": "youtube#channelListResponse",
+  "items": [
+    { "id": "chanA", "statistics": { "subscriberCount": "1200000" } },
+    { "id": "chanB", "statistics": { "subscriberCount": "50000" } },
+    { "id": "chanC", "statistics": { "hiddenSubscriberCount": true } }
+  ]
+}

@@ -23,3 +23,6 @@ coverage/
 npm-debug.log*
 .pnpm-debug.log*
 .vercel
+
+# local caches (YouTube search results etc.)
+.cache/

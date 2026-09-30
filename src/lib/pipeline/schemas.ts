@@ -147,6 +147,31 @@ export const ResearchResultSchema = z.array(
 );
 export type ResearchResult = z.infer<typeof ResearchResultSchema>;
 
+/** Relevance ratings for one batch; ids must match the batch exactly (checked so a mismatch triggers the retry). */
+export function relevanceRatingsSchema(ids: readonly string[]) {
+  return z
+    .object({
+      ratings: z.array(z.object({ id: text, relevance: z.number().min(0).max(1) })),
+    })
+    .superRefine((v, ctx) => {
+      const expected = new Set(ids);
+      const seen = new Set<string>();
+      v.ratings.forEach((r, i) => {
+        if (!expected.has(r.id)) {
+          ctx.addIssue({ code: "custom", path: ["ratings", i, "id"], message: `Unknown id "${r.id}"` });
+        } else if (seen.has(r.id)) {
+          ctx.addIssue({ code: "custom", path: ["ratings", i, "id"], message: `Duplicate rating for "${r.id}"` });
+        }
+        seen.add(r.id);
+      });
+      const missing = ids.filter((id) => !seen.has(id));
+      if (missing.length) {
+        ctx.addIssue({ code: "custom", path: ["ratings"], message: `Missing ratings for: ${missing.join(", ")}` });
+      }
+    });
+}
+export type RelevanceRatings = { ratings: { id: string; relevance: number }[] };
+
 // ---------------------------------------------------------------------------
 // 4. Curriculum Designer
 

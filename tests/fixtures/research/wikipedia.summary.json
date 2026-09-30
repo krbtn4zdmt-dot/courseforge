@@ -1,0 +1,12 @@
+{
+  "type": "standard",
+  "title": "Battle of Gaugamela",
+  "displaytitle": "Battle of Gaugamela",
+  "description": "331 BC battle between Macedon and the Achaemenid Empire",
+  "timestamp": "2026-08-14T09:12:00Z",
+  "extract": "The Battle of Gaugamela took place in 331 BC between the forces of the Army of Macedon under Alexander the Great and the Persian Army under King Darius III.",
+  "content_urls": {
+    "desktop": { "page": "https://en.wikipedia.org/wiki/Battle_of_Gaugamela" },
+    "mobile": { "page": "https://en.m.wikipedia.org/wiki/Battle_of_Gaugamela" }
+  }
+}

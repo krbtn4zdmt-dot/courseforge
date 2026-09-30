@@ -34,6 +34,7 @@ pnpm test                # run unit tests
 pnpm typecheck           # tsc --noEmit
 pnpm lint                # eslint
 pnpm gen:course "<topic>" --days 3 --minutes 30 --level beginner   # CLI pipeline test (Phase 1)
+pnpm check:live ["<topic>"]  # live research smoke test: Tavily, Wikipedia, YouTube (uses real API quota)
 npx inngest-cli dev      # local Inngest dev server (Phase 3+)
 ```
 

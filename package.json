@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:course": "tsx scripts/gen-course.ts"
+    "gen:course": "tsx scripts/gen-course.ts",
+    "check:live": "tsx scripts/check-live.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.130.0",
