@@ -100,7 +100,7 @@ Rules: original wording only (no copied sentences; quotes under 15 words, attrib
 ```ts
 { questions: { prompt: string, options: {id: string, text: string}[], correctOptionId: string, explanation: string }[] }
 ```
-Rules: 3–5 questions per lesson; one question per objective minimum; plausible distractors; no "all of the above"; explanations reference the lesson.
+Rules: 3–5 questions per lesson, exactly the number given (one per objective, capped at 5; with more objectives, a question may cover two); plausible distractors; no "all of the above"; explanations reference the lesson.
 
 ## 7. Fact-Checker (`factChecker.ts`), MODEL_FAST
 **Input:** lesson content + the `grounding` passages of the sources it cites, the user's level

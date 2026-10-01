@@ -1,6 +1,6 @@
 import "server-only";
 
-import { callJson } from "@/lib/llm/client";
+import { callJson, type Effort, type ModelTier } from "@/lib/llm/client";
 
 import type { AgentDeps } from "./planner";
 import { buildLessonWriterPrompt, type LessonWriterPromptInput } from "./prompts/lessonWriter";
@@ -28,12 +28,27 @@ export function lessonOutputSchemaFor(sourceCount: number, includesPractice: boo
   });
 }
 
-export async function writeLesson(input: LessonWriterPromptInput, deps: AgentDeps = {}): Promise<LessonWriterOutput> {
+/** Which model drafts a lesson and which rewrites one after a failed fact-check. */
+export interface WriterSettings {
+  draftTier: ModelTier;
+  rewriteTier: ModelTier;
+  /** Omitted: the model's default. */
+  effort?: Effort;
+}
+
+export const DEFAULT_WRITER: WriterSettings = { draftTier: "smart", rewriteTier: "smart" };
+
+export async function writeLesson(
+  input: LessonWriterPromptInput,
+  deps: AgentDeps = {},
+  options: { tier?: ModelTier; effort?: Effort } = {},
+): Promise<LessonWriterOutput> {
   if (!input.sources.length) throw new Error(`[lessonWriter] no sources for "${input.lesson.title}"`);
   const { system, prompt } = buildLessonWriterPrompt(input);
   return (deps.callJson ?? callJson)({
     agent: "lessonWriter",
-    model: "smart",
+    model: options.tier ?? "smart",
+    ...(options.effort && { effort: options.effort }),
     system,
     prompt,
     schema: lessonOutputSchemaFor(input.sources.length, input.lesson.includesPractice),

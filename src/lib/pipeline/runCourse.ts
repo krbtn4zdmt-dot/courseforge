@@ -7,7 +7,7 @@ import { designCurriculum, type CurriculumResult } from "./curriculum";
 import { examineLesson } from "./examiner";
 import { citedFactCheckSources, factCheckLesson, type FactCheckResult } from "./factChecker";
 import { selectLessonSources, selectLessonVideos } from "./lessonSources";
-import { writeLesson } from "./lessonWriter";
+import { DEFAULT_WRITER, writeLesson, type WriterSettings } from "./lessonWriter";
 import { planCourse, type AgentDeps } from "./planner";
 import type { LessonWriterPromptInput } from "./prompts/lessonWriter";
 import { research, type ResearchDeps, type ResearchStats } from "./researcher";
@@ -129,7 +129,12 @@ export function slotForItem(budget: readonly DayBudget[], dayNumber: number, pos
   throw new Error(`No item ${position + 1} on day ${dayNumber}`);
 }
 
-export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): Promise<GeneratedLesson> {
+export interface LessonDeps extends AgentDeps {
+  writer?: WriterSettings;
+}
+
+export async function generateLesson(req: LessonRequest, deps: LessonDeps = {}): Promise<GeneratedLesson> {
+  const writer = deps.writer ?? DEFAULT_WRITER;
   const spec = req.syllabus.days[req.dayNumber - 1]?.lessons[req.position];
   if (!spec) throw new Error(`No item ${req.position + 1} on day ${req.dayNumber} in the syllabus`);
   const slot = slotForItem(req.budget, req.dayNumber, req.position, req.plan);
@@ -158,7 +163,7 @@ export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): 
       deps,
     );
 
-  let content = await writeLesson(writerInput, deps);
+  let content = await writeLesson(writerInput, deps, { tier: writer.draftTier, effort: writer.effort });
   let result = await check(content);
   const firstIssues = result.issues;
   let attempts = 1;
@@ -171,7 +176,7 @@ export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): 
     );
     let rewrite: LessonWriterOutput | null = null;
     try {
-      rewrite = await writeLesson({ ...writerInput, factCheckIssues: result.issues }, deps);
+      rewrite = await writeLesson({ ...writerInput, factCheckIssues: result.issues }, deps, { tier: writer.rewriteTier, effort: writer.effort });
     } catch (err) {
       // The first draft is usable: ship it with its known issues rather than lose the lesson.
       rewriteError = err instanceof Error ? err.message : String(err);
@@ -258,6 +263,7 @@ export interface CourseResult {
 
 export interface CourseDeps extends SyllabusDeps {
   lessonConcurrency?: number;
+  writer?: WriterSettings;
 }
 
 export function summarizeUsage(logs: readonly LlmCallLog[]): CourseStats["llm"] {
@@ -322,7 +328,7 @@ export async function runCourse(intake: CompletedIntake, deps: CourseDeps = {}):
           dayNumber: item.dayNumber,
           position: item.position,
         },
-        agentDeps,
+        { ...agentDeps, writer: deps.writer },
       );
       return { status: "ready", lesson };
     } catch (err) {

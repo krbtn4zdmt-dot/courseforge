@@ -9,7 +9,7 @@ export interface ExaminerPromptInput {
   level: Level;
 }
 
-/** 3–5 questions, and at least one per objective. */
+/** 3–5 questions: one per objective, capped at 5 (a question may then cover two objectives). */
 export function questionCount(objectiveCount: number): number {
   return Math.min(Math.max(objectiveCount, 3), 5);
 }
@@ -17,7 +17,7 @@ export function questionCount(objectiveCount: number): number {
 const SYSTEM = `You are the examiner for CourseForge. You write a short multiple-choice quiz that checks whether the learner met a lesson's objectives.
 
 Rules:
-- Write the number of questions given in the input, with at least one question per objective.
+- Write exactly the number of questions given in the input, never more. Cover every objective: one question per objective, or, when there are more objectives than questions, let a question test two related objectives.
 - Each question has exactly ${OPTIONS_PER_QUESTION} options with ids "a", "b", "c", "d", and exactly one correct option.
 - Test understanding and application, not trivia or wording tricks. Everything needed to answer must be in the lesson.
 - Distractors are plausible: common mistakes or misconceptions, similar length and style to the correct answer.

@@ -349,3 +349,38 @@ Format:
 - Evidence: a scripted browser play-through reached the summary with no errors. Wrong formulas produced the expected hints. Test-out with 3 of 3 skips ahead to the price demo. Phone width has no horizontal overflow.
 - Leftovers: videos open on YouTube; the AI grading and the Coach need the viewer's Claude consent and otherwise fall back to a self-check. The prototype content is hand-condensed from the generated Excel course, so task 1.9 still needs to produce it from the pipeline.
 - Decisions: none.
+
+## 2026-10-01: Cost overrun, cheaper-writer A/B (supports the SPEC cost target; stopped early when API credits ran out)
+- Context: the lesson writer is ~74% of course cost, and the other agents cost about $0.44 per 7-day Excel course on their own. To reach $0.75 the writer would have to cost about $0.015 a lesson, and on Sonnet the source text it reads alone costs about $0.022. The A/B covered three options: Haiku drafts with Sonnet rewrites, Sonnet at `medium` effort (re-tested because the fact-checker false positives that sank it before are fixed), and a per-lesson cap on source text.
+- Changed:
+  - `WriterSettings` (`draftTier`, `rewriteTier`, `effort`) in `lessonWriter.ts`, passed through `generateLesson` and `runCourse`. The default is unchanged: Sonnet for drafts and rewrites at the default effort.
+  - `gen:course` and `eval:writer` take `--draft-model`, `--rewrite-model` and `--writer-effort`.
+  - `capLessonGrounding`: a lesson's sources share 4,500 words, so short sources keep everything and longer ones keep their most on-topic paragraphs. It is on by default.
+  - Examiner: writes exactly the number of questions asked for; with more than 5 objectives, a question may cover two. Before, it wrote too many, failed validation and paid for a retry. AGENTS.md §6 is updated.
+- Evidence:
+  - `pnpm test` 364/364 passed (new: cap tests, writer model routing). Typecheck and lint are clean.
+  - Writer eval (6 lessons × 2 drafts, same sources):
+
+    | Writer | Writer cost | Fact-check failed | Real errors among the failures |
+    |---|---|---|---|
+    | Sonnet, default effort | $1.05 | 1/12 | 0 (a checker false alarm) |
+    | Sonnet, `medium` | $0.83 | 4/12 | 0–1 (mostly the checker misreading correct hedges) |
+    | Haiku | $0.28 | 6/12 | 4: wrong cavalry count, Parmenio placed in Europe, wrong Diadochi war dates, Seleucus given Babylonia at the Partition |
+
+    The "repeats a bad fact" matches were all correct hedges ("one source calls him Darius II, but he was Darius III").
+  - Course runs. Alexander (3 days) completed fully. The Excel runs (7 days) lost 5–6 of 18 lessons when credits ran out, so only their per-lesson figures count:
+
+    | Writer | Alexander, 3 days | Alexander per 7 days | Rewrites | Excel writer cost per call | Excel lessons under the word range |
+    |---|---|---|---|---|---|
+    | Sonnet, default (earlier run) | $0.78 | $1.82 | 0/6 | $0.063 | 0/18 |
+    | Sonnet, `medium` | $0.67 | $1.56 | 1/6 | $0.030 | 5/13 |
+    | Haiku drafts, Sonnet rewrites | $0.61 | $1.42 | 3/6 | $0.011 | 10/12 (351–745 words; target 900–1,200) |
+
+    Projected full Excel courses: about $1.0 with `medium` and about $0.65–0.75 with Haiku drafts, against $1.71 today. Haiku gets near the target mainly by writing half-length lessons.
+  - Source cap: in the writer eval (Sonnet), average writer input fell from 19.3k to 12.5k tokens (−36%). Only 10 drafts finished before credits ran out, so its effect on quality isn't measured.
+- Leftovers:
+  - Nothing reaches $0.75 at today's lesson quality. The defaults stay on Sonnet at the default effort.
+  - Once credits are added: measure the source cap (`eval:writer --reps 2`, `eval:factcheck`, and one Excel run). Revert the cap if the fact-check pass rate drops.
+  - Next options for the user to choose between: generate days 2–7 with the Message Batches API (50% off, slower; fits the Phase 3 background jobs); task 1.9's shorter paged format, which roughly halves reading words per day; or revise the target to about $1.
+- Decisions: one row added to the ARCHITECTURE.md decisions log.
+

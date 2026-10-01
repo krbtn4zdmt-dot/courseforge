@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { selectLessonSources, selectLessonVideos } from "@/lib/pipeline/lessonSources";
+import { capLessonGrounding, selectLessonSources, selectLessonVideos } from "@/lib/pipeline/lessonSources";
 import type { ResearcherOutput, Source } from "@/lib/pipeline/schemas";
 
 const src = (url: string, score: number, grounding: string | null, type: Source["type"] = "web"): Source => ({
@@ -51,6 +51,28 @@ describe("selectLessonSources", () => {
     expect(selectLessonSources(research, ["Legacy"]).map((s) => s.title)).toEqual(["legacy"]);
     expect(selectLessonSources(research, ["Early life", "Persia"], 2)).toHaveLength(2);
     expect(selectLessonSources(research, ["Unknown"])).toEqual([]);
+  });
+});
+
+describe("capLessonGrounding", () => {
+  const para = (topic: string, n: number) => `${topic} ` + Array.from({ length: n - 1 }, (_, i) => `w${i}`).join(" ");
+  const source = (title: string, grounding: string) => ({ title, url: `https://x.com/${title}`, grounding, excerptOnly: false });
+  const count = (s: { grounding: string }) => s.grounding.split(/\s+/).filter(Boolean).length;
+
+  it("leaves sources alone when they fit", () => {
+    const sources = [source("a", para("Gaugamela", 50)), source("b", para("Issus", 40))];
+    expect(capLessonGrounding(sources, ["Gaugamela"], 100)).toEqual(sources);
+  });
+
+  it("passes a short source's unused share to the longer ones", () => {
+    const long = [para("Gaugamela", 60), para("Granicus", 60), para("Gaugamela", 60)].join("\n\n");
+    const out = capLessonGrounding([source("short", para("Issus", 20)), source("long", long), source("long2", long)], ["Gaugamela"], 200);
+    expect(count(out[0]!)).toBe(20);
+    expect(out.map(count).reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(200);
+    // 90 words each: the on-topic paragraphs come first, the Granicus one is cut.
+    expect(count(out[1]!)).toBe(90);
+    expect(out[1]!.grounding.startsWith("Gaugamela")).toBe(true);
+    expect(out[1]!.grounding).not.toContain("Granicus");
   });
 });
 

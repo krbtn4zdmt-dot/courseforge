@@ -1,5 +1,5 @@
 // Lesson-writer eval: pnpm eval:writer [--corpus out/eval/factcheck] [--cases evals/writer/cases.json]
-//   [--reps 1] [--concurrency 3]
+//   [--reps 1] [--concurrency 3] [--draft-model fast|smart] [--writer-effort low|medium|high]
 // Drafts each case's lesson again from its stored sources and outline, then reports whether the draft repeats
 // the known bad fact, whether it passes the fact-checker (no rewrite), and the cost. Uses the corpus of the
 // fact-checker eval (course JSON named <course>.json; not committed).
@@ -16,12 +16,15 @@ import type { CourseResult } from "@/lib/pipeline/runCourse";
 import type { FactCheckIssue } from "@/lib/pipeline/schemas";
 import { badFactsIn, writerInputFor, WriterEvalFileSchema, type WriterEvalCase } from "@/lib/pipeline/writerEval";
 
+import { WRITER_OPTIONS, writerFromArgs } from "./cli";
+
 const { values } = parseArgs({
   options: {
     corpus: { type: "string", default: "out/eval/factcheck" },
     cases: { type: "string", default: "evals/writer/cases.json" },
     reps: { type: "string", default: "1" },
     concurrency: { type: "string", default: "3" },
+    ...WRITER_OPTIONS,
   },
 });
 
@@ -35,6 +38,7 @@ interface Run {
 }
 
 async function main() {
+  const writer = writerFromArgs(values);
   const reps = Number(values.reps);
   if (!Number.isInteger(reps) || reps < 1) throw new Error("--reps must be a positive integer");
   const { cases } = WriterEvalFileSchema.parse(JSON.parse(await readFile(values.cases, "utf8")));
@@ -49,7 +53,7 @@ async function main() {
   const runs = await mapWithConcurrency(jobs, Number(values.concurrency), async ({ testCase, rep }): Promise<Run> => {
     const course = courses.get(testCase.course)!;
     const input = writerInputFor(course, findLesson(course, testCase.day, testCase.position));
-    const content = await writeLesson(input, { onUsage });
+    const content = await writeLesson(input, { onUsage }, { tier: writer.draftTier, effort: writer.effort });
     const check = await factCheckLesson(
       { contentMd: content.contentMd, sources: citedFactCheckSources(input.sources, content.citedSourceIndexes), level: input.level },
       { onUsage },
@@ -67,6 +71,7 @@ async function main() {
   }
   const cost = (agent: string) => logs.filter((l) => l.agent === agent).reduce((n, l) => n + (l.costUsd ?? 0), 0);
   const summary = {
+    writer: `${writer.draftTier}${writer.effort ? ` (${writer.effort})` : ""}`,
     drafts: runs.length,
     repeatBadFact: runs.filter((r) => r.badFacts.length).length,
     factCheckFailed: runs.filter((r) => !r.passed).length,

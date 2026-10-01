@@ -143,6 +143,19 @@ describe("generateLesson", () => {
     });
   });
 
+  it("drafts and rewrites with the writer settings' models (default: smart for both)", async () => {
+    const outputs = () => ({ lessonWriter: [withPractice(draft, "v1"), withPractice(draft, "v2")], factChecker: [failingCheck, clean], examiner: [quiz] });
+    const writerCalls = (c: typeof callJson) => calls(c).filter((o) => o.agent === "lessonWriter").map((o) => [o.model, o.effort]);
+
+    const byDefault = llm(outputs());
+    await generateLesson(req, { callJson: byDefault });
+    expect(writerCalls(byDefault)).toEqual([["smart", undefined], ["smart", undefined]]);
+
+    const hybrid = llm(outputs());
+    await generateLesson(req, { callJson: hybrid, writer: { draftTier: "fast", rewriteTier: "smart", effort: "medium" } });
+    expect(writerCalls(hybrid)).toEqual([["fast", "medium"], ["smart", "medium"]]);
+  });
+
   it("ships with an unverified-claims notice when the rewrite still fails, and logs it", async () => {
     const call = llm({
       lessonWriter: [withPractice(draft, "v1"), withPractice(draft, "v2")],

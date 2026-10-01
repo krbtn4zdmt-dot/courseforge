@@ -33,14 +33,14 @@ pnpm dev                 # run the app locally
 pnpm test                # run unit tests
 pnpm typecheck           # next typegen + tsc --noEmit
 pnpm lint                # eslint
-pnpm gen:course "<topic>" --days 3 --minutes 30 --level beginner   # CLI pipeline test (Phase 1)
+pnpm gen:course "<topic>" --days 3 --minutes 30 --level beginner [--draft-model fast|smart] [--rewrite-model fast|smart] [--writer-effort low|medium|high]   # CLI pipeline test (Phase 1); writer flags for cost A/B runs
 pnpm research:smoke "<topic>"              # research clients + scoring smoke test (task 1.3)
 pnpm gen:syllabus "<topic>" --days 7 --minutes 30 --level beginner --goal understand [--out out/x.json]
 pnpm gen:lesson --from out/x.json --day 1 --lesson 1   # one lesson (or pass the topic + intake flags)
 pnpm check:live                          # preflight (env, hosts, Anthropic key and models) + all Phase 1 live checks in order; logs to out/live-checks/
 pnpm audit:course out/<slug>.json        # mechanical quality audit of a generated course (content rules, SPEC targets)
 pnpm eval:factcheck [--reps 2] [--model smart] [--rescore out/eval/factcheck-<time>.json]   # fact-checker eval on labeled lessons (corpus in out/eval/factcheck/)
-pnpm eval:writer [--reps 2]                # lesson-writer eval: redraft lessons whose sources carry a known bad fact (same corpus)
+pnpm eval:writer [--reps 2] [--draft-model fast|smart] [--writer-effort medium]   # lesson-writer eval: redraft lessons whose sources carry a known bad fact (same corpus)
 npx inngest-cli dev      # local Inngest dev server (Phase 3+)
 ```
 

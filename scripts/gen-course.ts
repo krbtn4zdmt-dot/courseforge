@@ -1,4 +1,5 @@
 // Phase 1 CLI (task 1.6): pnpm gen:course "<topic>" --days 3 --minutes 30 --level beginner [--goal understand] [--out out]
+//   [--draft-model fast|smart] [--rewrite-model fast|smart] [--writer-effort low|medium|high]
 // Runs the whole pipeline and writes out/<slug>.json and out/<slug>.md.
 // Needs ANTHROPIC_API_KEY, TAVILY_API_KEY, YOUTUBE_API_KEY, MODEL_SMART, MODEL_FAST (from .env.local).
 import { mkdir, writeFile } from "node:fs/promises";
@@ -8,20 +9,22 @@ import { formatCostUsd } from "@/lib/llm/cost";
 import { formatPercent, renderCourseMarkdown, slugify } from "@/lib/pipeline/courseOutput";
 import { runCourse } from "@/lib/pipeline/runCourse";
 
-import { INTAKE_OPTIONS, intakeFromArgs, parseArgs, seconds } from "./cli";
+import { INTAKE_OPTIONS, intakeFromArgs, parseArgs, seconds, WRITER_OPTIONS, writerFromArgs } from "./cli";
 
 const USAGE = 'pnpm gen:course "<topic>" --days 3 --minutes 30 --level beginner [--goal understand] [--out out]';
 
 const { positionals, values } = parseArgs({
   allowPositionals: true,
-  options: { ...INTAKE_OPTIONS, out: { type: "string", default: "out" } },
+  options: { ...INTAKE_OPTIONS, ...WRITER_OPTIONS, out: { type: "string", default: "out" } },
 });
 
 async function main() {
   const intake = intakeFromArgs(positionals[0], values, USAGE);
-  console.log(`Generating "${intake.topic}": ${intake.days} days × ${intake.minutesPerDay} min, ${intake.level}, ${intake.goal}\n`);
+  const writer = writerFromArgs(values);
+  console.log(`Generating "${intake.topic}": ${intake.days} days × ${intake.minutesPerDay} min, ${intake.level}, ${intake.goal}`);
+  console.log(`Lesson writer: drafts ${writer.draftTier}, rewrites ${writer.rewriteTier}, effort ${writer.effort ?? "default"}\n`);
 
-  const course = await runCourse(intake);
+  const course = await runCourse(intake, { writer });
   const { stats } = course;
 
   const slug = slugify(intake.topic);
