@@ -1,0 +1,41 @@
+import { describe, expect, it } from "vitest";
+
+import type { CourseResult, GeneratedLesson } from "@/lib/pipeline/runCourse";
+import { badFactsIn, writerInputFor } from "@/lib/pipeline/writerEval";
+
+describe("badFactsIn", () => {
+  it("returns the patterns the text matches, case-insensitively", () => {
+    const patterns = ["October\\s+31", "Darius II\\b"];
+    expect(badFactsIn("fought on october  31 near Arbela", patterns)).toEqual(["October\\s+31"]);
+    expect(badFactsIn("Darius III fled", patterns)).toEqual([]);
+  });
+});
+
+describe("writerInputFor", () => {
+  it("rebuilds the first-draft writer input from the stored course", () => {
+    const lesson = {
+      dayNumber: 2,
+      position: 0,
+      slot: { estMinutes: 30 },
+      spec: { title: "Thebes", subtopics: ["Thebes"] },
+      content: { contentMd: "x", citedSourceIndexes: [1] },
+      sources: [{ index: 1, title: "A", url: "https://a.org" }],
+    } as unknown as GeneratedLesson;
+    const course = {
+      intake: { level: "beginner" },
+      syllabus: { plan: { topicType: "knowledge", sensitiveDomain: null }, curriculum: { syllabus: { courseTitle: "C" } } },
+      deepResearch: { output: [{ subtopic: "Thebes", sources: [{ url: "https://a.org", title: "A", type: "web", score: 1, excerpt: "e", grounding: "[Thebes](https://x.org) fell." }] }] },
+      lessons: [],
+    } as unknown as CourseResult;
+    expect(writerInputFor(course, lesson)).toEqual({
+      lesson: lesson.spec,
+      dayNumber: 2,
+      slot: lesson.slot,
+      syllabus: { courseTitle: "C" },
+      sources: [{ title: "A", url: "https://a.org", grounding: "Thebes fell.", excerptOnly: false }],
+      level: "beginner",
+      topicType: "knowledge",
+      sensitiveDomain: null,
+    });
+  });
+});

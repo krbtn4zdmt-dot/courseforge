@@ -40,6 +40,7 @@ pnpm gen:lesson --from out/x.json --day 1 --lesson 1   # one lesson (or pass the
 pnpm check:live                          # preflight (env, hosts, Anthropic key and models) + all Phase 1 live checks in order; logs to out/live-checks/
 pnpm audit:course out/<slug>.json        # mechanical quality audit of a generated course (content rules, SPEC targets)
 pnpm eval:factcheck [--reps 2] [--model smart] [--rescore out/eval/factcheck-<time>.json]   # fact-checker eval on labeled lessons (corpus in out/eval/factcheck/)
+pnpm eval:writer [--reps 2]                # lesson-writer eval: redraft lessons whose sources carry a known bad fact (same corpus)
 npx inngest-cli dev      # local Inngest dev server (Phase 3+)
 ```
 

@@ -1,0 +1,11 @@
+{
+  "about": "Lesson-writer eval cases (pnpm eval:writer). Each case is a shipped lesson, read from <corpus>/<course>.json (same corpus as the fact-checker eval, not committed), whose sources carry a known bad fact. A draft that mentions the bad version only to say sources disagree still matches, so read matches before counting them. The writer drafts the lesson again from the same sources and outline; a draft repeats the bad fact when it matches any badFacts regex (case-insensitive).",
+  "cases": [
+    { "course": "C-alex", "day": 2, "position": 0, "badFacts": ["October\\s+31", "31\\s+October"], "note": "Britannica's Gaugamela page says both October 1, 331 BCE and 'October 31'" },
+    { "course": "D-alex", "day": 2, "position": 0, "badFacts": ["October\\s+31", "31\\s+October", "Darius II\\b"], "note": "Britannica October 31; EBSCO 'defeated King Darius II himself in 333'" },
+    { "course": "C-alex", "day": 3, "position": 1, "badFacts": ["October\\s+31", "31\\s+October"], "note": "Britannica October 31" },
+    { "course": "D-alex", "day": 3, "position": 1, "badFacts": ["October\\s+31", "31\\s+October"], "note": "Britannica October 31" },
+    { "course": "base-alex", "day": 2, "position": 0, "badFacts": ["Darius II\\b", "October\\s+31"], "note": "EBSCO 'Darius II' (it was Darius III)" },
+    { "course": "base-excel", "day": 1, "position": 0, "badFacts": ["\\bthree\\b[^.\\n]{0,60}\\bsheets?\\b", "\\bsheets?\\b[^.\\n]{0,40}\\bthree\\b"], "note": "unstop.com blog: default workbook has three sheets (current Excel starts with one)" }
+  ]
+}

@@ -270,3 +270,17 @@ Format:
   - 1.6 stays `[~]`: uncited sections remain (audit: 26 Excel problems, 3 Alexander).
   - $0.75 is still not reached.
 - Decisions: two rows added to the ARCHITECTURE.md decisions log (evidence-first fact-checker; fact-checker eval).
+
+## 2026-10-01: Bad-source handling, investigation: the writer already hedges; the fact-checker flags claims that aren't in the lesson (supports 1.6 and the SPEC flag-rate target)
+- Context: the remaining flags were traced to three source errors: Britannica's Gaugamela page gives both "October 1, 331 BCE" and "October 31"; EBSCO's Gaugamela article says "defeated King Darius II himself in 333"; an unstop.com blog says new workbooks have three sheets. The plan was a lesson-writer rule for conflicting or outdated facts, measured with a new writer eval.
+- Changed:
+  - New `pnpm eval:writer` (`scripts/eval-writer.ts`, `src/lib/pipeline/writerEval.ts`, cases in `evals/writer/cases.json`). It redrafts 6 shipped lessons whose sources carry one of those facts, using the same sources, outline and slot, then reports whether the draft repeats the bad fact and whether it passes the fact-checker. It uses the fact-checker eval's corpus.
+  - `rebuildLessonSources` is now shared by both evals.
+- Evidence:
+  - `pnpm test` 358/358 passed (2 new writer-eval tests). Typecheck and lint are clean.
+  - Writer eval baseline (current prompts, 6 cases × 2 runs, writer $1.08 + checker $0.18). 2 of 12 drafts matched a bad-fact pattern. One was a correct hedge ("Most accounts give the date as 1 October 331 BCE, though one passage of Britannica gives 31 October"). The other was a too-broad regex ("Sheet2, Sheet3"), since narrowed; that draft says the starting sheet count "depends on your version and settings".
+  - 5 of 12 drafts failed the fact-check. In at least 3 of them, the flagged claim isn't in the draft. "Alexander defeated King Darius II himself" was flagged on a draft that says Darius III; "The decisive battle of the war was fought on October 31" was flagged twice on drafts that don't say it. The checker lifted those sentences from the passages.
+- Leftovers:
+  - The writer rule isn't needed for these cases, so it isn't added.
+  - The fix belongs in the fact-checker: drop findings whose claim isn't in the lesson. That needs approval because it changes AGENTS.md §7 again.
+- Decisions: none yet.

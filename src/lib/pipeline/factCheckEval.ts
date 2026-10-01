@@ -7,6 +7,7 @@ import { stripMarkdownNoise } from "@/lib/research/grounding";
 import { citedFactCheckSources } from "./factChecker";
 import { selectLessonSources } from "./lessonSources";
 import type { FactCheckerPromptInput } from "./prompts/factChecker";
+import type { LessonSource } from "./prompts/lessonWriter";
 import type { CourseResult, GeneratedLesson } from "./runCourse";
 import type { FactCheckIssue } from "./schemas";
 
@@ -66,10 +67,10 @@ export function findLesson(course: CourseResult, day: number, position: number):
 }
 
 /**
- * The fact-checker input the pipeline would build for this shipped lesson today: the same source selection
- * from the stored deep research, with grounding passed through the current markdown stripping.
+ * The sources the pipeline would give this shipped lesson today: the same selection from the stored deep
+ * research, with grounding passed through the current markdown stripping. Throws if a cited source moved.
  */
-export function factCheckInputFor(course: CourseResult, lesson: GeneratedLesson): FactCheckerPromptInput {
+export function rebuildLessonSources(course: CourseResult, lesson: GeneratedLesson): LessonSource[] {
   const sources = selectLessonSources(course.deepResearch.output, lesson.spec.subtopics).map((s) => ({
     ...s,
     grounding: stripMarkdownNoise(s.grounding),
@@ -79,9 +80,14 @@ export function factCheckInputFor(course: CourseResult, lesson: GeneratedLesson)
       throw new Error(`Source [${cited.index}] of "${lesson.spec.title}" no longer matches the stored research`);
     }
   }
+  return sources;
+}
+
+/** The fact-checker input the pipeline would build for this shipped lesson today. */
+export function factCheckInputFor(course: CourseResult, lesson: GeneratedLesson): FactCheckerPromptInput {
   return {
     contentMd: lesson.content.contentMd,
-    sources: citedFactCheckSources(sources, lesson.content.citedSourceIndexes),
+    sources: citedFactCheckSources(rebuildLessonSources(course, lesson), lesson.content.citedSourceIndexes),
     level: course.intake.level,
   };
 }
