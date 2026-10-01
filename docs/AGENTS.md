@@ -142,7 +142,7 @@ Rules: list what the document says the learner must know or do, in its own order
 
 ## Contract changes planned in Phase 1b
 - **Planner / Curriculum (1.7, 1.8):** take `requirements` or `purpose`; every lesson names the requirement, place or task it serves; output a coverage map.
-- **Lesson Writer (1.9):** `contentMd` is replaced by `activities: Card[]`, where a card is one of `story | predict | decide | match | order | mythFact | spotError | practiceStep | explainBack`. Each card carries its citations, and there is an action at least every ~90 seconds of reading. Original-wording, citation and length rules still apply, per card.
+- **Lesson Writer (1.9):** `contentMd` is replaced by `activities: Card[]`, where a card is one of `reading | video | predict | decide | match | order | mythFact | spotError | practiceStep | explainBack`. A `reading` card is 2–3 pages of at most ~80 words each. A `video` card places one of the lesson's curated videos and adds 2–3 "watch for" prompts that the lesson text supports. Each part teaches (reading, then video) before its activities. Each card carries its citations, and there is an action at least every ~90 seconds of reading. Original-wording, citation and length rules still apply, per card.
 - **Examiner (1.10):** also writes the 3-question test-out per lesson and marks which cards each question covers; warm-ups reuse earlier items.
 - **Researcher (1.11):** honours `sourcePreference` when collecting and scoring sources.
 - **Fact-Checker (1.11):** reports a conflict between cited passages as `disagreement` (shown to the learner as a "Sources disagree" note) instead of failing the lesson; scenario outcomes and every card are checked.

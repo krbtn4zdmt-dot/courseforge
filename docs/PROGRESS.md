@@ -330,3 +330,12 @@ Format:
   - The $0.75 cost target is still open, and 1.9 must not raise cost.
   - Text-to-speech and SMS providers are to be chosen in tasks 5.5 and 5.6.
 - Decisions: one decisions-log row (the differentiators plan; PDFs read by Claude as documents).
+
+## 2026-10-01: Teach first: short paged readings and videos in the interactive format (docs + prototype)
+- Context: the user found the Day 2 prototype engaging but too review-heavy, and asked for more actual learning: videos and short passages split across pages so they feel shorter.
+- Changed:
+  - The prototype (artifact, version 2) now opens each part with a reading passage of 3 pages of at most 74 words each, 21 pages in all. Two curated videos with "watch for" notes are added: HISTORY's 8-minute battle film, which is optional because it would take the day over 30 minutes, and Mythoria's 4-minute "Road to India". The activities follow the teaching. Two pure-review items were cut. The day is 28 minutes without the optional video. Test-out skips the opening reading, and skipped videos are listed as "Saved for later".
+  - SPEC.md core flow, BUILD_PLAN.md 1.9 and the AGENTS.md Lesson Writer change all add `reading` and `video` card types and a "teach, then use" rule.
+- Evidence: a scripted browser play-through reached the end with no errors, and phone width has no horizontal overflow.
+- Leftovers: the prototype opens videos on YouTube in a new tab (the artifact page can't embed other sites); the app embeds them (task 4.3).
+- Decisions: none beyond the SPEC rule.
