@@ -118,8 +118,10 @@ export const invalidCases: Record<AgentName, InvalidCase[]> = {
     },
   ],
   factChecker: [
-    { name: "unknown problem type", mutate: (o) => (o.issues[0].problem = "wrong"), path: "issues.0.problem" },
-    { name: "missing suggestion", mutate: (o) => delete o.issues[0].suggestion, path: "issues.0.suggestion" },
-    { name: "issues not an array", mutate: (o) => (o.issues = null), path: "issues" },
+    { name: "unknown verdict", mutate: (o) => (o.findings[0].verdict = "wrong"), path: "findings.0.verdict" },
+    { name: "missing suggestion", mutate: (o) => delete o.findings[0].suggestion, path: "findings.0.suggestion" },
+    { name: "missing passageSays (null is allowed, absent isn't)", mutate: (o) => delete o.findings[0].passageSays, path: "findings.0.passageSays" },
+    { name: "sourceIndex 0", mutate: (o) => (o.findings[0].sourceIndex = 0), path: "findings.0.sourceIndex" },
+    { name: "findings not an array", mutate: (o) => (o.findings = null), path: "findings" },
   ],
 };

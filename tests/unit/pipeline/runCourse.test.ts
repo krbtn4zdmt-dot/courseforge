@@ -70,7 +70,13 @@ describe("generateLesson", () => {
     practiceTask: { instructions: "Open a new workbook and add a sheet.", expectedOutcome: "A workbook with two sheets." },
   });
   const quiz = validOutputs.examiner as ExaminerOutput;
-  const clean: FactCheckOutput = { issues: [] };
+  const clean: FactCheckOutput = { findings: [] };
+  /** failingCheck as issues: both contradictions are quoted from this lesson's grounding, the supported finding is dropped. */
+  const failingIssues = [
+    { claim: "A workbook holds only one worksheet", problem: "contradicted", suggestion: "Source [1] says a workbook contains worksheets (plural)." },
+    { claim: "Ctrl+Arrow deletes the current row", problem: "contradicted", suggestion: "Source [2] says Ctrl+Arrow jumps to the edge of the data." },
+    { claim: "Excel was first released in 1975", problem: "unsupported", suggestion: "No passage gives a release date; remove it." },
+  ];
 
   /** Mock LLM: each agent returns its queued responses in order. */
   function llm(queues: Record<string, unknown[]>) {
@@ -98,7 +104,7 @@ describe("generateLesson", () => {
     expect(lesson.videos.map((v) => v.url)).toEqual(["https://www.youtube.com/watch?v=abc"]);
     expect(lesson.quiz.questions.length).toBeGreaterThanOrEqual(3);
     expect(lesson.quiz.questions.length).toBeLessThanOrEqual(5);
-    expect(lesson.factCheck).toEqual({ passed: true, issues: [], attempts: 1, rewritten: false, rewriteError: null, unverifiedClaims: [] });
+    expect(lesson.factCheck).toEqual({ passed: true, issues: [], firstIssues: [], attempts: 1, rewritten: false, rewriteError: null, unverifiedClaims: [] });
     expect(lesson.slot).toEqual({ estMinutes: 15, readingMinutes: 7, mediaMinutes: 2, practiceMinutes: 6 });
 
     // Grounded sources are numbered first; the fact-checker gets only the cited ones, with their passages
@@ -118,11 +124,20 @@ describe("generateLesson", () => {
     expect(calls(call).map((o) => o.agent)).toEqual(["lessonWriter", "factChecker", "lessonWriter", "factChecker", "examiner"]);
     const rewritePrompt = calls(call)[2]!.prompt;
     expect(rewritePrompt).toContain("## Fact-check issues to fix in this rewrite");
-    expect(rewritePrompt).toContain('[contradicted] "Alexander was born in Athens"');
+    expect(rewritePrompt).toContain('[contradicted] "A workbook holds only one worksheet"');
+    expect(rewritePrompt).not.toContain("Use Ctrl+Arrow to jump\"");
     expect(calls(call)[4]!.prompt).toContain("<!-- rewrite -->");
     expect(calls(call)[4]!.prompt).not.toContain("<!-- first draft -->");
     expect(lesson.content.contentMd).toContain("<!-- rewrite -->");
-    expect(lesson.factCheck).toEqual({ passed: true, issues: [], attempts: 2, rewritten: true, rewriteError: null, unverifiedClaims: [] });
+    expect(lesson.factCheck).toEqual({
+      passed: true,
+      issues: [],
+      firstIssues: failingIssues,
+      attempts: 2,
+      rewritten: true,
+      rewriteError: null,
+      unverifiedClaims: [],
+    });
   });
 
   it("ships with an unverified-claims notice when the rewrite still fails, and logs it", async () => {
@@ -135,7 +150,7 @@ describe("generateLesson", () => {
 
     expect(calls(call).filter((o) => o.agent === "lessonWriter")).toHaveLength(2); // only one rewrite
     expect(lesson.factCheck).toMatchObject({ passed: false, attempts: 2, rewritten: true });
-    expect(lesson.factCheck.unverifiedClaims.map((i) => i.claim)).toEqual(["Alexander was born in Athens", "he became king at 18"]);
+    expect(lesson.factCheck.unverifiedClaims.map((i) => i.claim)).toEqual(failingIssues.map((i) => i.claim));
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("ships with an unverified-claims notice"));
   });
 
@@ -144,7 +159,7 @@ describe("generateLesson", () => {
     const lesson = await generateLesson(req, { callJson: call }); // the rewrite call finds no queued response and throws
     expect(lesson.content.contentMd).toContain("<!-- first draft -->");
     expect(lesson.factCheck).toMatchObject({ passed: false, attempts: 1, rewritten: false, rewriteError: "no mock response for lessonWriter" });
-    expect(lesson.factCheck.unverifiedClaims).toHaveLength(2);
+    expect(lesson.factCheck.unverifiedClaims).toEqual(failingIssues);
     expect(calls(call).at(-1)!.agent).toBe("examiner");
   });
 
@@ -161,7 +176,7 @@ describe("generateLesson", () => {
     const lesson = await generateLesson(req, { callJson: call }); // the second fact-check has no queued response and throws
     expect(lesson.content.contentMd).toContain("<!-- rewrite -->");
     expect(lesson.factCheck).toMatchObject({ passed: false, attempts: 1, rewritten: true, rewriteError: "re-check failed: no mock response for factChecker" });
-    expect(lesson.factCheck.unverifiedClaims.map((i) => i.claim)).toEqual(["Alexander was born in Athens", "he became king at 18"]);
+    expect(lesson.factCheck.unverifiedClaims.map((i) => i.claim)).toEqual(failingIssues.map((i) => i.claim));
   });
 
   it("writes review items with the review block's minutes and no videos", async () => {

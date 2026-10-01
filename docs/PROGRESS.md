@@ -242,3 +242,31 @@ Format:
   - Rewrites now decide course cost, so the flag-rate work (fact-checker false positives, factual errors in drafts) is the next cost lever.
   - $0.75 is still far off: about $1.6 for Excel and $2.4 per 7 days for Alexander.
 - Decisions: the decisions-log row is updated (effort plumbing kept, no agent uses it).
+
+## 2026-10-01: Flag rate, first pass: evidence-first fact-checker and a fact-checker eval (supports 1.6 and the SPEC flag-rate and cost targets)
+- Context: rewrites had become the main cost driver, and flags are what trigger them. Of 22 claims shipped with the "could not be verified" notice across five course runs, 17 were stated in the lesson's own cited passage once checked by hand. Three that first looked like real errors were also in the passages: Craterus's feints, "June 13", and Pindar's house. Three were bad sources: Gaugamela "October 31", Excel "three sheets", and a "Darius II" typo. One was a real error: Hydaspes "526 BCE". The old checker often labeled a claim `contradicted` while its own suggestion said the source agreed. The schema put `problem` before any reasoning.
+- Changed:
+  - Fact-checker output is now `findings` (`claim`, `sourceIndex`, `passageSays`, `verdict` incl. `supported`, `suggestion`). `issuesFromFindings` drops `supported` and downgrades contradictions whose quote isn't in the passage (`quoteFoundInPassages`). The prompt judges claims against their cited passage first and skips worked examples. AGENTS.md §7 is updated.
+  - `generateLesson` stores and logs the first draft's issues (`factCheck.firstIssues`), so rewrites can be analyzed. `citedFactCheckSources` is shared by the pipeline and the eval.
+  - New `pnpm eval:factcheck` (`scripts/eval-factcheck.ts`, `src/lib/pipeline/factCheckEval.ts`, labels in `evals/factcheck/labels.json`). It covers 27 shipped lessons (16 labeled, 11 clean), re-checked with the same source selection as the pipeline, and has `--rescore`. The corpus lives in `out/eval/factcheck/` and isn't committed.
+- Evidence:
+  - `pnpm test` 356/356 passed: new tests for findings → issues, quote matching, eval scoring, input rebuild and `findLesson`; the fixtures were moved to the findings shape. Typecheck and lint are clean.
+  - Eval, 27 lessons × 2 runs:
+
+    | | Failed checks | Supported claims flagged | Real error caught | Clean lessons failed | Unlabeled issues | Cost per run |
+    |---|---|---|---|---|---|---|
+    | Old checker | 26/54 | 9/32 | 2/2 | 5/22 | 30 | $0.54 |
+    | Evidence-first | 8/54 | 2/32 | 2/2 | 0/20 | 6 | $0.65 |
+    | + skip worked examples | 10/54 | 0/32 | 2/2 | 0/20 | 7 | $0.62 |
+
+    Of the last 10 failures, 2 are the real error, 7 are bad-source cases and 1 is a probable false alarm.
+  - Course runs:
+    - Excel (7 days): $1.71, 2 rewrites, flag rate 11% (2/18). Before: $1.94, 5 rewrites, 22%.
+    - Alexander (3 days): $0.89 ($2.07 per 7 days), 1 rewrite, 17% (1/6). Before: $1.17, 1 rewrite, 17%.
+- Leftovers:
+  - Bad sources are now the main flag cause (Gaugamela "October 31" appears in every Alexander run). That's research-side work: prefer the majority figure across passages, or hedge.
+  - The worked-example rule was added after the course runs, so its effect on a full course isn't measured. It would have avoided the Excel SUM/AVERAGE lesson's rewrite, where the rewrite then broke "95.94" into "95.95".
+  - Sonnet as fact-checker (plan option c) and Haiku with thinking (option b) weren't run: at most 1–3 avoidable failures out of 54 remain, and Sonnet would cost about 5× per check.
+  - 1.6 stays `[~]`: uncited sections remain (audit: 26 Excel problems, 3 Alexander).
+  - $0.75 is still not reached.
+- Decisions: two rows added to the ARCHITECTURE.md decisions log (evidence-first fact-checker; fact-checker eval).

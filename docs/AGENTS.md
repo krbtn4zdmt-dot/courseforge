@@ -98,15 +98,23 @@ Rules: 3–5 questions per lesson; one question per objective minimum; plausible
 
 ## 7. Fact-Checker (`factChecker.ts`), MODEL_FAST
 **Input:** lesson content + the `grounding` passages of the sources it cites, the user's level
-**Output:**
+**Output** (model):
 ```ts
 {
-  issues: { claim: string, problem: "unsupported" | "contradicted" | "outdated", suggestion: string }[]
+  findings: {
+    claim: string,
+    sourceIndex: number | null,   // the [n] of the passage the verdict rests on
+    passageSays: string | null,   // a short exact quote from that passage
+    verdict: "supported" | "unsupported" | "contradicted" | "outdated",
+    suggestion: string
+  }[]
 }
 ```
+The passage comes before the verdict so the verdict is decided after reading it. In code, `supported` findings are dropped, and the rest become `issues: { claim, problem, suggestion }[]`. A `contradicted`/`outdated` verdict whose `passageSays` isn't found in that passage (ignoring case, spacing, emphasis and curly quotes; `...` splits the quote) is downgraded to `unsupported`.
 Rules:
-- Flag only specific factual claims: numbers, dates, names, quotes, cause-and-effect statements, and instructions a learner will follow. Not framing, style, definitions, or common knowledge at the user's level.
-- `contradicted` / `outdated`: the grounding says otherwise or is newer. `unsupported`: a specific claim the grounding doesn't cover.
+- Check only specific factual claims: numbers, dates, names, quotes, cause-and-effect statements, and instructions a learner will follow. Not framing, style, definitions, common knowledge at the user's level, or worked examples the lesson sets up itself.
+- Judge a claim against the passage it cites; the other passages count only when the claim has no citation or its cited passage doesn't cover it. A claim its cited passage supports is `supported` even if another passage disagrees.
+- `contradicted` / `outdated`: the passage says otherwise or is newer. `unsupported`: a specific claim no passage covers.
 - `passed` is computed in code, not by the model: the lesson fails if there is any `contradicted` or `outdated` issue, or more than 2 `unsupported` ones.
 - On failure, re-run the Lesson Writer once with the issues attached. If it still fails, mark the lesson `ready` with a visible "some claims could not be verified" notice listing them, and log it. The SPEC's fact-check flag rate is the share of lessons shipped with that notice.
 

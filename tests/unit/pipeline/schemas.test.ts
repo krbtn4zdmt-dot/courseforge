@@ -69,7 +69,7 @@ describe("other schemas", () => {
   });
 
   it("fact-check accepts an empty issue list", () => {
-    expect(FactCheckOutputSchema.safeParse({ issues: [] }).success).toBe(true);
+    expect(FactCheckOutputSchema.safeParse({ findings: [] }).success).toBe(true);
   });
 
   it("researcher output validates sources and allows null grounding", () => {

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DISCLAIMERS } from "@/lib/disclaimers";
 import type { callJson } from "@/lib/llm/client";
 import { examineLesson, examinerSchemaFor } from "@/lib/pipeline/examiner";
-import { factCheckLesson, factCheckPassed } from "@/lib/pipeline/factChecker";
+import { factCheckLesson, factCheckPassed, issuesFromFindings, quoteFoundInPassages } from "@/lib/pipeline/factChecker";
 import { lessonOutputSchemaFor, writeLesson } from "@/lib/pipeline/lessonWriter";
 import type { LessonWriterPromptInput } from "@/lib/pipeline/prompts/lessonWriter";
 import type { CurriculumOutput, ExaminerOutput, FactCheckIssue, LessonWriterOutput } from "@/lib/pipeline/schemas";
@@ -77,14 +77,52 @@ describe("fact-checker", () => {
     expect(factCheckPassed(issues)).toBe(passed);
   });
 
-  it("uses the fast model and computes passed in code", async () => {
+  const passages = [
+    { index: 1, title: "Microsoft", grounding: "A **workbook** contains   worksheets. Each sheet has a tab." },
+    { index: 2, title: "Exceljet", grounding: "Use Ctrl+Arrow to jump to the edge of the data." },
+  ];
+
+  it("uses the fast model, turns findings into issues and computes passed in code", async () => {
     const call = vi.fn(async () => failing) as unknown as typeof callJson;
-    const result = await factCheckLesson(
-      { contentMd: lesson.contentMd, sources: [{ index: 1, title: "Britannica", grounding: "Born in Pella." }], level: "beginner" },
-      { callJson: call },
-    );
-    expect(result).toEqual({ issues: failing.issues, passed: false });
+    const result = await factCheckLesson({ contentMd: lesson.contentMd, sources: passages, level: "beginner" }, { callJson: call });
+    expect(result.issues.map((i) => [i.problem, i.claim])).toEqual([
+      ["contradicted", "A workbook holds only one worksheet"],
+      ["contradicted", "Ctrl+Arrow deletes the current row"],
+      ["unsupported", "Excel was first released in 1975"],
+    ]);
+    expect(result.passed).toBe(false);
     expect(vi.mocked(call).mock.calls[0]![0]).toMatchObject({ agent: "factChecker", model: "fast" });
+  });
+
+  it("quoteFoundInPassages ignores case, spacing, emphasis and curly quotes, and splits at ellipses", () => {
+    expect(quoteFoundInPassages("“a workbook contains worksheets.”", 1, passages)).toBe(true);
+    expect(quoteFoundInPassages("A workbook ... each sheet has a tab", 1, passages)).toBe(true);
+    expect(quoteFoundInPassages("A workbook contains worksheets", 2, passages)).toBe(false);
+    expect(quoteFoundInPassages("Use Ctrl+Arrow to jump", null, passages)).toBe(true);
+    expect(quoteFoundInPassages("Use Ctrl+Arrow to jump", 9, passages)).toBe(true);
+    expect(quoteFoundInPassages("A workbook has 3 sheets", 1, passages)).toBe(false);
+    expect(quoteFoundInPassages(" ... ", 1, passages)).toBe(false);
+  });
+
+  it("issuesFromFindings drops supported findings and downgrades contradictions without a real quote", () => {
+    const finding = (verdict: "supported" | "unsupported" | "contradicted" | "outdated", passageSays: string | null, sourceIndex: number | null = 1) => ({
+      claim: `${verdict}: ${passageSays}`,
+      sourceIndex,
+      passageSays,
+      verdict,
+      suggestion: "s",
+    });
+    const issues = issuesFromFindings(
+      [
+        finding("supported", "A workbook contains worksheets."),
+        finding("contradicted", "A workbook contains worksheets."),
+        finding("outdated", "A workbook holds 3 sheets"),
+        finding("contradicted", null, null),
+        finding("unsupported", null, null),
+      ],
+      passages,
+    );
+    expect(issues.map((i) => i.problem)).toEqual(["contradicted", "unsupported", "unsupported", "unsupported"]);
   });
 });
 

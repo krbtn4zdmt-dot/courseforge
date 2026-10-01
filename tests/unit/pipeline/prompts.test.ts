@@ -11,7 +11,7 @@ import { formatBudgetSlots, JSON_ONLY, type PromptPair } from "@/lib/pipeline/pr
 import type {
   CompletedIntake,
   CurriculumOutput,
-  FactCheckOutput,
+  FactCheckIssue,
   LessonWriterOutput,
   PlannerOutput,
 } from "@/lib/pipeline/schemas";
@@ -64,7 +64,7 @@ const prompts: Record<string, { pair: PromptPair; keys: string[] }> = {
   },
   factChecker: {
     pair: buildFactCheckerPrompt({ contentMd: lesson.contentMd, sources: [{ index: 1, title: "Britannica", grounding: "Born 356 BCE." }], level: "beginner" }),
-    keys: ["issues", "claim", "problem", "suggestion"],
+    keys: ["findings", "claim", "sourceIndex", "passageSays", "verdict", "suggestion"],
   },
 };
 
@@ -167,7 +167,7 @@ describe("lesson writer prompt", () => {
 
   it("includes fact-check issues only on a rewrite", () => {
     expect(prompts.lessonWriter!.pair.prompt).not.toContain("Fact-check issues");
-    const issues = (validOutputs.factChecker as FactCheckOutput).issues;
+    const issues: FactCheckIssue[] = [{ claim: "before he turned 33", problem: "unsupported", suggestion: "Say he died at 32, citing [1]." }];
     const rewrite = buildLessonWriterPrompt({ ...lessonInput, factCheckIssues: issues });
     expect(rewrite.prompt).toContain("Fact-check issues to fix");
     expect(rewrite.prompt).toContain('[unsupported] "before he turned 33"');

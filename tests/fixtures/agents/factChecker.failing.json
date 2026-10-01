@@ -1,6 +1,8 @@
 {
-  "issues": [
-    { "claim": "Alexander was born in Athens", "problem": "contradicted", "suggestion": "Source [1] says he was born in Pella, the Macedonian capital." },
-    { "claim": "he became king at 18", "problem": "contradicted", "suggestion": "Source [1] gives 336 BCE, when he was 20." }
+  "findings": [
+    { "claim": "A workbook holds only one worksheet", "sourceIndex": 1, "passageSays": "A workbook contains worksheets.", "verdict": "contradicted", "suggestion": "Source [1] says a workbook contains worksheets (plural)." },
+    { "claim": "Ctrl+Arrow deletes the current row", "sourceIndex": 2, "passageSays": "Use Ctrl+Arrow to jump.", "verdict": "contradicted", "suggestion": "Source [2] says Ctrl+Arrow jumps to the edge of the data." },
+    { "claim": "Excel was first released in 1975", "sourceIndex": null, "passageSays": null, "verdict": "unsupported", "suggestion": "No passage gives a release date; remove it." },
+    { "claim": "Use Ctrl+Arrow to jump", "sourceIndex": 2, "passageSays": "Use Ctrl+Arrow to jump.", "verdict": "supported", "suggestion": "" }
   ]
 }

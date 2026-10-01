@@ -60,7 +60,7 @@ function lesson(overrides: { contentMd?: string; readingMinutes?: number; url?: 
         explanation: "e",
       })),
     },
-    factCheck: { passed: true, issues: [], attempts: 1, rewritten: false, rewriteError: null, unverifiedClaims: [] },
+    factCheck: { passed: true, issues: [], firstIssues: [], attempts: 1, rewritten: false, rewriteError: null, unverifiedClaims: [] },
   };
 }
 

@@ -280,7 +280,22 @@ export const FactCheckIssueSchema = z.object({
 });
 export type FactCheckIssue = z.infer<typeof FactCheckIssueSchema>;
 
-export const FactCheckOutputSchema = z.object({ issues: z.array(FactCheckIssueSchema) });
+/**
+ * What the model returns per checked claim. The passage comes before the verdict so the verdict is decided
+ * after reading it; "supported" lets the model back out of a claim it listed, and is dropped in code.
+ */
+export const FactCheckFindingSchema = z.object({
+  claim: z.string().min(1),
+  /** The [n] of the passage the verdict rests on; null when no passage covers the claim. */
+  sourceIndex: z.number().int().positive().nullable(),
+  /** A short exact quote from that passage; null when no passage covers the claim. */
+  passageSays: z.string().nullable(),
+  verdict: z.enum(["supported", "unsupported", "contradicted", "outdated"]),
+  suggestion: z.string(),
+});
+export type FactCheckFinding = z.infer<typeof FactCheckFindingSchema>;
+
+export const FactCheckOutputSchema = z.object({ findings: z.array(FactCheckFindingSchema) });
 export type FactCheckOutput = z.infer<typeof FactCheckOutputSchema>;
 
 // ---------- Relevance rating (researcher, MODEL_FAST) ----------

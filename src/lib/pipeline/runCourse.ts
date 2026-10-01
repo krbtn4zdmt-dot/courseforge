@@ -5,7 +5,7 @@ import type { LlmCallLog } from "@/lib/llm/cost";
 
 import { designCurriculum, type CurriculumResult } from "./curriculum";
 import { examineLesson } from "./examiner";
-import { factCheckLesson, type FactCheckResult } from "./factChecker";
+import { citedFactCheckSources, factCheckLesson, type FactCheckResult } from "./factChecker";
 import { selectLessonSources, selectLessonVideos } from "./lessonSources";
 import { writeLesson } from "./lessonWriter";
 import { planCourse, type AgentDeps } from "./planner";
@@ -107,6 +107,8 @@ export interface GeneratedLesson {
   factCheck: {
     passed: boolean;
     issues: FactCheckIssue[];
+    /** The first draft's issues (the ones a rewrite was asked to fix); same as issues when there was no rewrite. */
+    firstIssues: FactCheckIssue[];
     /** Fact-check runs: 1, or 2 after a rewrite. */
     attempts: number;
     rewritten: boolean;
@@ -150,7 +152,7 @@ export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): 
     factCheckLesson(
       {
         contentMd: content.contentMd,
-        sources: content.citedSourceIndexes.map((index) => ({ index, title: sources[index - 1]!.title, grounding: sources[index - 1]!.grounding })),
+        sources: citedFactCheckSources(sources, content.citedSourceIndexes),
         level: req.intake.level,
       },
       deps,
@@ -158,11 +160,15 @@ export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): 
 
   let content = await writeLesson(writerInput, deps);
   let result = await check(content);
+  const firstIssues = result.issues;
   let attempts = 1;
   let rewritten = false;
   let rewriteError: string | null = null;
   if (!result.passed) {
-    console.warn(`[lesson] "${spec.title}" failed fact-check (${result.issues.length} issues); rewriting once`);
+    console.warn(
+      `[lesson] "${spec.title}" failed fact-check (${result.issues.length} issues); rewriting once:\n` +
+        result.issues.map((i) => `- [${i.problem}] ${i.claim}`).join("\n"),
+    );
     let rewrite: LessonWriterOutput | null = null;
     try {
       rewrite = await writeLesson({ ...writerInput, factCheckIssues: result.issues }, deps);
@@ -204,6 +210,7 @@ export async function generateLesson(req: LessonRequest, deps: AgentDeps = {}): 
     factCheck: {
       passed: result.passed,
       issues: result.issues,
+      firstIssues,
       attempts,
       rewritten,
       rewriteError,
