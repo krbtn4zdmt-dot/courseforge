@@ -71,11 +71,14 @@ describe("generateLesson", () => {
   });
   const quiz = validOutputs.examiner as ExaminerOutput;
   const clean: FactCheckOutput = { findings: [] };
-  /** failingCheck as issues: both contradictions are quoted from this lesson's grounding, the supported finding is dropped. */
+  /**
+   * failingCheck as issues: both contradictions quote this lesson's grounding; the supported finding and the claim
+   * that isn't in the lesson are dropped.
+   */
   const failingIssues = [
-    { claim: "A workbook holds only one worksheet", problem: "contradicted", suggestion: "Source [1] says a workbook contains worksheets (plural)." },
-    { claim: "Ctrl+Arrow deletes the current row", problem: "contradicted", suggestion: "Source [2] says Ctrl+Arrow jumps to the edge of the data." },
-    { claim: "Excel was first released in 1975", problem: "unsupported", suggestion: "No passage gives a release date; remove it." },
+    { claim: "Alexander was born in Pella in 356 BCE", problem: "contradicted", suggestion: "Follow source [1]." },
+    { claim: "Alexander, then 20, moved quickly", problem: "contradicted", suggestion: "Follow source [2]." },
+    { claim: "taught by the philosopher Aristotle", problem: "unsupported", suggestion: "No passage mentions his tutor; remove it." },
   ];
 
   /** Mock LLM: each agent returns its queued responses in order. */
@@ -124,8 +127,8 @@ describe("generateLesson", () => {
     expect(calls(call).map((o) => o.agent)).toEqual(["lessonWriter", "factChecker", "lessonWriter", "factChecker", "examiner"]);
     const rewritePrompt = calls(call)[2]!.prompt;
     expect(rewritePrompt).toContain("## Fact-check issues to fix in this rewrite");
-    expect(rewritePrompt).toContain('[contradicted] "A workbook holds only one worksheet"');
-    expect(rewritePrompt).not.toContain("Use Ctrl+Arrow to jump\"");
+    expect(rewritePrompt).toContain('[contradicted] "Alexander was born in Pella in 356 BCE"');
+    expect(rewritePrompt).not.toContain("Darius II");
     expect(calls(call)[4]!.prompt).toContain("<!-- rewrite -->");
     expect(calls(call)[4]!.prompt).not.toContain("<!-- first draft -->");
     expect(lesson.content.contentMd).toContain("<!-- rewrite -->");

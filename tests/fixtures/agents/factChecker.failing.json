@@ -1,8 +1,9 @@
 {
   "findings": [
-    { "claim": "A workbook holds only one worksheet", "sourceIndex": 1, "passageSays": "A workbook contains worksheets.", "verdict": "contradicted", "suggestion": "Source [1] says a workbook contains worksheets (plural)." },
-    { "claim": "Ctrl+Arrow deletes the current row", "sourceIndex": 2, "passageSays": "Use Ctrl+Arrow to jump.", "verdict": "contradicted", "suggestion": "Source [2] says Ctrl+Arrow jumps to the edge of the data." },
-    { "claim": "Excel was first released in 1975", "sourceIndex": null, "passageSays": null, "verdict": "unsupported", "suggestion": "No passage gives a release date; remove it." },
-    { "claim": "Use Ctrl+Arrow to jump", "sourceIndex": 2, "passageSays": "Use Ctrl+Arrow to jump.", "verdict": "supported", "suggestion": "" }
+    { "claim": "Alexander was born in Pella in 356 BCE", "sourceIndex": 1, "passageSays": "A workbook contains worksheets.", "verdict": "contradicted", "suggestion": "Follow source [1]." },
+    { "claim": "Alexander, then 20, moved quickly", "sourceIndex": 2, "passageSays": "Use Ctrl+Arrow to jump.", "verdict": "contradicted", "suggestion": "Follow source [2]." },
+    { "claim": "taught by the philosopher Aristotle", "sourceIndex": null, "passageSays": null, "verdict": "unsupported", "suggestion": "No passage mentions his tutor; remove it." },
+    { "claim": "Alexander defeated King Darius II himself", "sourceIndex": 1, "passageSays": "A workbook contains worksheets.", "verdict": "contradicted", "suggestion": "Not in the lesson: dropped in code." },
+    { "claim": "became king at 20", "sourceIndex": 2, "passageSays": "Use Ctrl+Arrow to jump.", "verdict": "supported", "suggestion": "" }
   ]
 }

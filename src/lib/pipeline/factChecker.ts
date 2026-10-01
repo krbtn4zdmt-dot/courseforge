@@ -27,6 +27,7 @@ export function citedFactCheckSources(sources: readonly LessonSource[], citedInd
 function normalizeForQuote(text: string): string {
   return text
     .toLowerCase()
+    .replace(/\\(?=[^\s\w])/g, "") // markdown escapes: "5+2\*3" reads as "5+2*3"
     .replace(/[*_`]/g, "")
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
@@ -34,15 +35,20 @@ function normalizeForQuote(text: string): string {
     .trim();
 }
 
-/**
- * True when every part of the quote (split at ellipses) appears in the named passage, or in any passage
- * when the index is missing or unknown. Case, whitespace, markdown emphasis and curly quotes are ignored.
- */
-export function quoteFoundInPassages(quote: string, sourceIndex: number | null, sources: readonly FactCheckSource[]): boolean {
-  const parts = quote
+/** The quote's parts (split at ellipses), normalized and trimmed of surrounding quotes and punctuation. */
+function quoteParts(quote: string): string[] {
+  return quote
     .split(/\.\.\.|…/)
     .map((p) => normalizeForQuote(p).replace(/^[\s"'.,;:]+|[\s"'.,;:]+$/g, ""))
     .filter(Boolean);
+}
+
+/**
+ * True when every part of the quote (split at ellipses) appears in the named passage, or in any passage
+ * when the index is missing or unknown. Case, whitespace, markdown escapes and emphasis, and curly quotes are ignored.
+ */
+export function quoteFoundInPassages(quote: string, sourceIndex: number | null, sources: readonly FactCheckSource[]): boolean {
+  const parts = quoteParts(quote);
   if (!parts.length) return false;
   const named = sources.find((s) => s.index === sourceIndex);
   const passages = (named ? [named] : sources).map((s) => normalizeForQuote(s.grounding));
@@ -50,12 +56,28 @@ export function quoteFoundInPassages(quote: string, sourceIndex: number | null, 
 }
 
 /**
- * Findings to issues: "supported" findings are dropped, and a contradicted or outdated verdict whose quote
- * isn't in the passages is downgraded to unsupported (a contradiction needs evidence the lesson can be fixed against).
+ * True when the claim is quoted from the lesson: every part appears in it, ignoring what quoteFoundInPassages
+ * ignores plus citation markers, headings, blockquote marks and table pipes.
  */
-export function issuesFromFindings(findings: readonly FactCheckFinding[], sources: readonly FactCheckSource[]): FactCheckIssue[] {
+export function claimFoundInLesson(claim: string, contentMd: string): boolean {
+  const strip = (text: string) => text.replace(/\[\d+(?:\s*,\s*\d+)*\]/g, " ").replace(/[|#>]/g, " ");
+  const parts = quoteParts(strip(claim));
+  const lesson = normalizeForQuote(strip(contentMd));
+  return parts.length > 0 && parts.every((part) => lesson.includes(part));
+}
+
+/**
+ * Findings to issues. Dropped: "supported" findings, and findings whose claim isn't in the lesson (the model
+ * sometimes lists a passage's own sentence). A contradicted or outdated verdict whose quote isn't in the
+ * passages is downgraded to unsupported (a contradiction needs evidence the lesson can be fixed against).
+ */
+export function issuesFromFindings(
+  findings: readonly FactCheckFinding[],
+  sources: readonly FactCheckSource[],
+  contentMd: string,
+): FactCheckIssue[] {
   return findings.flatMap((f): FactCheckIssue[] => {
-    if (f.verdict === "supported") return [];
+    if (f.verdict === "supported" || !claimFoundInLesson(f.claim, contentMd)) return [];
     const evidenced = f.passageSays !== null && quoteFoundInPassages(f.passageSays, f.sourceIndex, sources);
     const problem = f.verdict === "unsupported" || evidenced ? f.verdict : "unsupported";
     return [{ claim: f.claim, problem, suggestion: f.suggestion }];
@@ -77,6 +99,6 @@ export async function factCheckLesson(input: FactCheckerPromptInput, deps: Agent
     schema: FactCheckOutputSchema,
     onUsage: deps.onUsage,
   });
-  const issues = issuesFromFindings(findings, input.sources);
+  const issues = issuesFromFindings(findings, input.sources, input.contentMd);
   return { issues, passed: factCheckPassed(issues) };
 }

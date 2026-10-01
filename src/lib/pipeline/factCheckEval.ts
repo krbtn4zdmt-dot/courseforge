@@ -27,6 +27,8 @@ export const EvalCaseSchema = z.object({
   course: z.string().min(1),
   day: z.number().int().positive(),
   position: z.number().int().nonnegative(),
+  /** A seeded error: this text in the lesson is replaced before checking (label the replacement "error"). */
+  edit: z.object({ find: z.string().min(1), replace: z.string().min(1) }).optional(),
   labels: z.array(EvalLabelSchema),
 });
 export type EvalCase = z.infer<typeof EvalCaseSchema>;
@@ -83,10 +85,18 @@ export function rebuildLessonSources(course: CourseResult, lesson: GeneratedLess
   return sources;
 }
 
-/** The fact-checker input the pipeline would build for this shipped lesson today. */
-export function factCheckInputFor(course: CourseResult, lesson: GeneratedLesson): FactCheckerPromptInput {
+/** The lesson text with a seeded error applied; throws if the text to replace isn't in the lesson exactly once. */
+export function applyEdit(contentMd: string, edit: EvalCase["edit"]): string {
+  if (!edit) return contentMd;
+  const count = contentMd.split(edit.find).length - 1;
+  if (count !== 1) throw new Error(`Seeded edit "${edit.find}" appears ${count} times in the lesson (needs exactly 1)`);
+  return contentMd.replace(edit.find, edit.replace);
+}
+
+/** The fact-checker input the pipeline would build for this shipped lesson today, with any seeded error applied. */
+export function factCheckInputFor(course: CourseResult, lesson: GeneratedLesson, edit?: EvalCase["edit"]): FactCheckerPromptInput {
   return {
-    contentMd: lesson.content.contentMd,
+    contentMd: applyEdit(lesson.content.contentMd, edit),
     sources: citedFactCheckSources(rebuildLessonSources(course, lesson), lesson.content.citedSourceIndexes),
     level: course.intake.level,
   };

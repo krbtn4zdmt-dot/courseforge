@@ -1,57 +1,474 @@
 {
-  "about": "Fact-checker eval cases (pnpm eval:factcheck). Each case is a shipped lesson from a 2026-09-30/10-01 course run, read from <corpus>/<course>.json (not committed: it holds third-party source text). A label matches a fact-check issue whose claim contains any of its `match` strings (case-insensitive). truth: supported = a cited passage states it, so flagging it is a false alarm; error = not supported by the lesson's sources or wrong, so it should be flagged; either = the cited passage states it but another passage or current fact disagrees (not scored). Lessons with no labels passed their original check: any issue on them is reported as unlabeled.",
+  "about": "Fact-checker eval cases (pnpm eval:factcheck). Each case is a shipped lesson from a 2026-09-30/10-01 course run, read from <corpus>/<course>.json (not committed: it holds third-party source text). A label matches a fact-check issue whose claim contains any of its `match` strings (case-insensitive). truth: supported = a cited passage states it, so flagging it is a false alarm; error = not supported by the lesson's sources or wrong, so it should be flagged; either = the cited passage states it but another passage or current fact disagrees (not scored). Cases with an `edit` seed an error: the find text is replaced before checking, and the replacement is labeled error. Lessons with no labels passed their original check: any issue on them is reported as unlabeled.",
   "cases": [
-    { "course": "C-alex", "day": 1, "position": 0, "labels": [] },
-    { "course": "C-alex", "day": 1, "position": 1, "labels": [{ "match": ["Pindar"], "truth": "supported", "note": "cited Battle of Thebes passage: 'sparing only the temples, the Cadmea citadel and the house of Pindar'" }] },
-    { "course": "C-alex", "day": 2, "position": 0, "labels": [{ "match": ["second and final"], "truth": "supported", "note": "cited Battle of Gaugamela passage: 'It was the second and final battle between the two kings'" }] },
-    { "course": "C-alex", "day": 2, "position": 1, "labels": [{ "match": ["Craterus"], "truth": "supported", "note": "cited passage [1]: 'He left his general, Craterus, behind with most of the army ... Craterus engaged in frequent feints'" }] },
     {
-      "course": "C-alex", "day": 3, "position": 0,
+      "course": "C-alex",
+      "day": 1,
+      "position": 0,
+      "labels": []
+    },
+    {
+      "course": "C-alex",
+      "day": 1,
+      "position": 1,
       "labels": [
-        { "match": ["June 13"], "truth": "supported", "note": "cited passage [6]: 'When Alexander was declared dead on June 13, theories began forming'" },
-        { "match": ["281"], "truth": "supported", "note": "cited passage: 'The battle of Corupedium in 281 BC, left Seleucus I as the only living successor'" }
+        {
+          "match": [
+            "Pindar"
+          ],
+          "truth": "supported",
+          "note": "cited Battle of Thebes passage: 'sparing only the temples, the Cadmea citadel and the house of Pindar'"
+        }
       ]
     },
-    { "course": "C-alex", "day": 3, "position": 1, "labels": [{ "match": ["October 31"], "truth": "either", "note": "cited passage says October 31; Britannica (another passage) says October 1, 331 BCE" }] },
-    { "course": "C-excel", "day": 1, "position": 0, "labels": [] },
-    { "course": "C-excel", "day": 1, "position": 1, "labels": [{ "match": ["black plus"], "truth": "supported", "note": "cited passage: 'The autofill handle, denoted by a black plus sign in Excel'" }] },
-    { "course": "C-excel", "day": 2, "position": 1, "labels": [] },
-    { "course": "C-excel", "day": 3, "position": 0, "labels": [{ "match": ["95.94"], "truth": "supported", "note": "cited passage, verbatim" }] },
-    { "course": "C-excel", "day": 4, "position": 2, "labels": [{ "match": ["Average"], "truth": "supported", "note": "cited passage: 'Excel will display the Sum as well as the Count ... and the Average'" }] },
-    { "course": "D-alex", "day": 1, "position": 0, "labels": [] },
-    { "course": "D-alex", "day": 1, "position": 1, "labels": [] },
-    { "course": "D-alex", "day": 2, "position": 0, "labels": [{ "match": ["47,000"], "truth": "supported", "note": "cited passages: 'approximately 47,000 troops'; '50,000–250,000 (modern estimates)'" }] },
-    { "course": "D-alex", "day": 2, "position": 1, "labels": [{ "match": ["526"], "truth": "error", "note": "Hydaspes was 326 BC" }] },
     {
-      "course": "D-alex", "day": 3, "position": 1,
+      "course": "C-alex",
+      "day": 2,
+      "position": 0,
       "labels": [
-        { "match": ["October 31"], "truth": "either", "note": "cited passage says October 31; another says October 1" },
-        { "match": ["Bessus"], "truth": "supported", "note": "cited passage: 'deposed and killed by Bessus, the Bactrian satrap'" }
+        {
+          "match": [
+            "second and final"
+          ],
+          "truth": "supported",
+          "note": "cited Battle of Gaugamela passage: 'It was the second and final battle between the two kings'"
+        }
       ]
     },
-    { "course": "base-alex", "day": 1, "position": 0, "labels": [] },
     {
-      "course": "base-alex", "day": 1, "position": 1,
+      "course": "C-alex",
+      "day": 2,
+      "position": 1,
       "labels": [
-        { "match": ["Pella"], "truth": "supported", "note": "cited passage: '356 – Alexander born in Pella'" },
-        { "match": ["300 miles", "Thessaly"], "truth": "supported", "note": "cited passage: 'He had marched over 300 miles in two weeks!'" },
-        { "match": ["Pindar"], "truth": "supported", "note": "cited passage [3]: 'Alexander saved Pindar's house because he was grateful for Pindar's poems'" }
+        {
+          "match": [
+            "Craterus"
+          ],
+          "truth": "supported",
+          "note": "cited passage [1]: 'He left his general, Craterus, behind with most of the army ... Craterus engaged in frequent feints'"
+        }
       ]
     },
-    { "course": "base-alex", "day": 2, "position": 0, "labels": [{ "match": ["Issus"], "truth": "either", "note": "lesson says Darius III (correct); cited passage [6] says 'Darius II' (a source error)" }] },
-    { "course": "base-bh", "day": 1, "position": 1, "labels": [] },
-    { "course": "base-bh", "day": 2, "position": 0, "labels": [] },
-    { "course": "base-excel", "day": 1, "position": 0, "labels": [{ "match": ["sheets", "Sheet 3"], "truth": "either", "note": "cited passage says three; current Excel defaults to one" }] },
-    { "course": "base-excel", "day": 1, "position": 1, "labels": [] },
-    { "course": "base-excel", "day": 2, "position": 0, "labels": [] },
-    { "course": "base-excel", "day": 3, "position": 0, "labels": [{ "match": ["95.94"], "truth": "supported", "note": "cited passage, verbatim" }] },
-    { "course": "base-excel", "day": 6, "position": 1, "labels": [{ "match": ["AutoSave"], "truth": "either", "note": "partly covered by the cited passage" }] },
     {
-      "course": "base-excel", "day": 6, "position": 2,
+      "course": "C-alex",
+      "day": 3,
+      "position": 0,
       "labels": [
-        { "match": ["first column"], "truth": "supported", "note": "cited passages cover 'lookup value not in first column'" },
-        { "match": ["approximate"], "truth": "either", "note": "passage covers TRUE = approximate, not the default" },
-        { "match": ["2021"], "truth": "supported", "note": "cited table: 'Excel 365, Excel 2021+'" }
+        {
+          "match": [
+            "June 13"
+          ],
+          "truth": "supported",
+          "note": "cited passage [6]: 'When Alexander was declared dead on June 13, theories began forming'"
+        },
+        {
+          "match": [
+            "281"
+          ],
+          "truth": "supported",
+          "note": "cited passage: 'The battle of Corupedium in 281 BC, left Seleucus I as the only living successor'"
+        }
+      ]
+    },
+    {
+      "course": "C-alex",
+      "day": 3,
+      "position": 1,
+      "labels": [
+        {
+          "match": [
+            "October 31"
+          ],
+          "truth": "either",
+          "note": "cited passage says October 31; Britannica (another passage) says October 1, 331 BCE"
+        }
+      ]
+    },
+    {
+      "course": "C-excel",
+      "day": 1,
+      "position": 0,
+      "labels": []
+    },
+    {
+      "course": "C-excel",
+      "day": 1,
+      "position": 1,
+      "labels": [
+        {
+          "match": [
+            "black plus"
+          ],
+          "truth": "supported",
+          "note": "cited passage: 'The autofill handle, denoted by a black plus sign in Excel'"
+        }
+      ]
+    },
+    {
+      "course": "C-excel",
+      "day": 2,
+      "position": 1,
+      "labels": []
+    },
+    {
+      "course": "C-excel",
+      "day": 3,
+      "position": 0,
+      "labels": [
+        {
+          "match": [
+            "95.94"
+          ],
+          "truth": "supported",
+          "note": "cited passage, verbatim"
+        }
+      ]
+    },
+    {
+      "course": "C-excel",
+      "day": 4,
+      "position": 2,
+      "labels": [
+        {
+          "match": [
+            "Average"
+          ],
+          "truth": "supported",
+          "note": "cited passage: 'Excel will display the Sum as well as the Count ... and the Average'"
+        }
+      ]
+    },
+    {
+      "course": "D-alex",
+      "day": 1,
+      "position": 0,
+      "labels": []
+    },
+    {
+      "course": "D-alex",
+      "day": 1,
+      "position": 1,
+      "labels": []
+    },
+    {
+      "course": "D-alex",
+      "day": 2,
+      "position": 0,
+      "labels": [
+        {
+          "match": [
+            "47,000"
+          ],
+          "truth": "supported",
+          "note": "cited passages: 'approximately 47,000 troops'; '50,000–250,000 (modern estimates)'"
+        }
+      ]
+    },
+    {
+      "course": "D-alex",
+      "day": 2,
+      "position": 1,
+      "labels": [
+        {
+          "match": [
+            "526"
+          ],
+          "truth": "supported",
+          "note": "the shipped (rewritten) lesson gives May 326 BCE and says the one site giving 526 BCE is wrong; the old 'catch' was source [6]'s own sentence"
+        }
+      ]
+    },
+    {
+      "course": "D-alex",
+      "day": 3,
+      "position": 1,
+      "labels": [
+        {
+          "match": [
+            "October 31"
+          ],
+          "truth": "either",
+          "note": "cited passage says October 31; another says October 1"
+        },
+        {
+          "match": [
+            "Bessus"
+          ],
+          "truth": "supported",
+          "note": "cited passage: 'deposed and killed by Bessus, the Bactrian satrap'"
+        }
+      ]
+    },
+    {
+      "course": "base-alex",
+      "day": 1,
+      "position": 0,
+      "labels": []
+    },
+    {
+      "course": "base-alex",
+      "day": 1,
+      "position": 1,
+      "labels": [
+        {
+          "match": [
+            "Pella"
+          ],
+          "truth": "supported",
+          "note": "cited passage: '356 – Alexander born in Pella'"
+        },
+        {
+          "match": [
+            "300 miles",
+            "Thessaly"
+          ],
+          "truth": "supported",
+          "note": "cited passage: 'He had marched over 300 miles in two weeks!'"
+        },
+        {
+          "match": [
+            "Pindar"
+          ],
+          "truth": "supported",
+          "note": "cited passage [3]: 'Alexander saved Pindar's house because he was grateful for Pindar's poems'"
+        }
+      ]
+    },
+    {
+      "course": "base-alex",
+      "day": 2,
+      "position": 0,
+      "labels": [
+        {
+          "match": [
+            "Issus"
+          ],
+          "truth": "either",
+          "note": "lesson says Darius III (correct); cited passage [6] says 'Darius II' (a source error)"
+        }
+      ]
+    },
+    {
+      "course": "base-bh",
+      "day": 1,
+      "position": 1,
+      "labels": []
+    },
+    {
+      "course": "base-bh",
+      "day": 2,
+      "position": 0,
+      "labels": []
+    },
+    {
+      "course": "base-excel",
+      "day": 1,
+      "position": 0,
+      "labels": [
+        {
+          "match": [
+            "sheets",
+            "Sheet 3"
+          ],
+          "truth": "either",
+          "note": "cited passage says three; current Excel defaults to one"
+        }
+      ]
+    },
+    {
+      "course": "base-excel",
+      "day": 1,
+      "position": 1,
+      "labels": []
+    },
+    {
+      "course": "base-excel",
+      "day": 2,
+      "position": 0,
+      "labels": []
+    },
+    {
+      "course": "base-excel",
+      "day": 3,
+      "position": 0,
+      "labels": [
+        {
+          "match": [
+            "95.94"
+          ],
+          "truth": "supported",
+          "note": "cited passage, verbatim"
+        }
+      ]
+    },
+    {
+      "course": "base-excel",
+      "day": 6,
+      "position": 1,
+      "labels": [
+        {
+          "match": [
+            "AutoSave"
+          ],
+          "truth": "either",
+          "note": "partly covered by the cited passage"
+        }
+      ]
+    },
+    {
+      "course": "base-excel",
+      "day": 6,
+      "position": 2,
+      "labels": [
+        {
+          "match": [
+            "first column"
+          ],
+          "truth": "supported",
+          "note": "cited passages cover 'lookup value not in first column'"
+        },
+        {
+          "match": [
+            "approximate"
+          ],
+          "truth": "either",
+          "note": "passage covers TRUE = approximate, not the default"
+        },
+        {
+          "match": [
+            "2021"
+          ],
+          "truth": "supported",
+          "note": "cited table: 'Excel 365, Excel 2021+'"
+        }
+      ]
+    },
+    {
+      "course": "C-alex",
+      "day": 1,
+      "position": 0,
+      "edit": {
+        "find": "About 4,000 Macedonian soldiers died with him",
+        "replace": "About 14,000 Macedonian soldiers died with him"
+      },
+      "labels": [
+        {
+          "match": [
+            "14,000"
+          ],
+          "truth": "error",
+          "note": "seeded: About 4,000 Macedonian soldiers died with him -> About 14,000 Macedonian soldiers died with him"
+        }
+      ]
+    },
+    {
+      "course": "C-excel",
+      "day": 1,
+      "position": 0,
+      "edit": {
+        "find": "1,048,576 rows and 16,384 columns",
+        "replace": "65,536 rows and 256 columns"
+      },
+      "labels": [
+        {
+          "match": [
+            "65,536"
+          ],
+          "truth": "error",
+          "note": "seeded: 1,048,576 rows and 16,384 columns -> 65,536 rows and 256 columns"
+        }
+      ]
+    },
+    {
+      "course": "C-excel",
+      "day": 2,
+      "position": 1,
+      "edit": {
+        "find": "`=5+2*3` gives 11",
+        "replace": "`=5+2*3` gives 21"
+      },
+      "labels": [
+        {
+          "match": [
+            "gives 21",
+            "21"
+          ],
+          "truth": "error",
+          "note": "seeded: `=5+2*3` gives 11 -> `=5+2*3` gives 21"
+        }
+      ]
+    },
+    {
+      "course": "D-alex",
+      "day": 1,
+      "position": 0,
+      "edit": {
+        "find": "against the Illyrian king Bardylis",
+        "replace": "against the Thracian king Bardylis"
+      },
+      "labels": [
+        {
+          "match": [
+            "Thracian"
+          ],
+          "truth": "error",
+          "note": "seeded: against the Illyrian king Bardylis -> against the Thracian king Bardylis"
+        }
+      ]
+    },
+    {
+      "course": "base-bh",
+      "day": 1,
+      "position": 1,
+      "edit": {
+        "find": "the size of a fingernail",
+        "replace": "the size of a basketball"
+      },
+      "labels": [
+        {
+          "match": [
+            "basketball"
+          ],
+          "truth": "error",
+          "note": "seeded: the size of a fingernail -> the size of a basketball"
+        }
+      ]
+    },
+    {
+      "course": "base-bh",
+      "day": 2,
+      "position": 0,
+      "edit": {
+        "find": "at least 40 billion solar masses",
+        "replace": "at least 4 billion solar masses"
+      },
+      "labels": [
+        {
+          "match": [
+            "4 billion"
+          ],
+          "truth": "error",
+          "note": "seeded: at least 40 billion solar masses -> at least 4 billion solar masses"
+        }
+      ]
+    },
+    {
+      "course": "base-excel",
+      "day": 2,
+      "position": 0,
+      "edit": {
+        "find": "Insert > Table",
+        "replace": "Insert > Chart"
+      },
+      "labels": [
+        {
+          "match": [
+            "Insert > Chart",
+            "Chart"
+          ],
+          "truth": "error",
+          "note": "seeded: Insert > Table -> Insert > Chart"
+        }
       ]
     }
   ]

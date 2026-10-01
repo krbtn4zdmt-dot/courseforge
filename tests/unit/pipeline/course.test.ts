@@ -211,7 +211,7 @@ describe("renderCourseMarkdown", () => {
     expect(md).toContain("#### Why this matters");
     expect(md).not.toMatch(/^## Why this matters/m);
     expect(md).toContain("> ⚠️ **Some claims could not be verified.**");
-    expect(md).toContain("> - A workbook holds only one worksheet");
+    expect(md).toContain("> - Alexander was born in Pella in 356 BCE");
     expect(md).toContain("> ❌ This lesson failed to generate: writer exploded");
     expect(md).toMatch(/3\/4 lessons ready, fact-check pass rate 67%/);
   });

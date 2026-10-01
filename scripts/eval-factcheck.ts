@@ -2,7 +2,7 @@
 //   [--model fast|smart] [--reps 1] [--concurrency 4] [--rescore out/eval/factcheck-<time>.json]
 // Re-runs only the fact-checker on hand-labeled shipped lessons and reports false alarms (supported claims
 // flagged), real problems caught, unlabeled issues, lessons that would be rewritten, and cost.
-// --rescore re-scores a saved run against the current labels without calling the API.
+// --rescore re-scores a saved run against the current labels and code without calling the API.
 // The corpus is course JSON from gen:course runs, named <course>.json; it isn't committed (third-party text).
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -19,9 +19,9 @@ import {
   type CaseScore,
   type EvalCase,
 } from "@/lib/pipeline/factCheckEval";
-import { factCheckLesson } from "@/lib/pipeline/factChecker";
+import { factCheckLesson, factCheckPassed, issuesFromFindings } from "@/lib/pipeline/factChecker";
 import type { CourseResult } from "@/lib/pipeline/runCourse";
-import type { FactCheckIssue } from "@/lib/pipeline/schemas";
+import { FactCheckOutputSchema, type FactCheckIssue } from "@/lib/pipeline/schemas";
 
 const { values } = parseArgs({
   options: {
@@ -49,18 +49,27 @@ function parseModel(value: string | undefined): ModelTier | undefined {
   throw new Error(`--model must be fast or smart, not "${value}"`);
 }
 
-async function runChecks(cases: readonly EvalCase[], model: ModelTier | undefined, reps: number): Promise<{ runs: Run[]; costUsd: number }> {
+async function loadCourses(cases: readonly EvalCase[]): Promise<Map<string, CourseResult>> {
   const courses = new Map<string, CourseResult>();
   for (const name of new Set(cases.map((c) => c.course))) {
     courses.set(name, JSON.parse(await readFile(path.join(values.corpus, `${name}.json`), "utf8")) as CourseResult);
   }
+  return courses;
+}
+
+async function runChecks(
+  cases: readonly EvalCase[],
+  courses: ReadonlyMap<string, CourseResult>,
+  model: ModelTier | undefined,
+  reps: number,
+): Promise<{ runs: Run[]; costUsd: number }> {
   const logs: LlmCallLog[] = [];
   const jobs = cases.flatMap((testCase) => Array.from({ length: reps }, (_, rep) => ({ testCase, rep })));
   const runs = await mapWithConcurrency(jobs, Number(values.concurrency), async ({ testCase, rep }): Promise<Run> => {
     const course = courses.get(testCase.course)!;
     const lesson = findLesson(course, testCase.day, testCase.position);
     let findings: unknown = null;
-    const result = await factCheckLesson(factCheckInputFor(course, lesson), {
+    const result = await factCheckLesson(factCheckInputFor(course, lesson, testCase.edit), {
       callJson: async (opts) => {
         const output = await callJson({ ...opts, model: model ?? opts.model });
         findings = output;
@@ -73,12 +82,24 @@ async function runChecks(cases: readonly EvalCase[], model: ModelTier | undefine
   return { runs, costUsd: logs.reduce((n, l) => n + (l.costUsd ?? 0), 0) };
 }
 
-/** Saved runs re-scored against the current labels (cases are matched by course, day and position). */
-function rescoreRuns(saved: readonly Run[], cases: readonly EvalCase[]): Run[] {
+/**
+ * Saved runs re-scored against the current labels (cases matched by course, day, position and seeded edit).
+ * Issues are recomputed from the saved findings with the current code, so code-side changes need no API calls.
+ */
+function rescoreRuns(saved: readonly Run[], cases: readonly EvalCase[], courses: ReadonlyMap<string, CourseResult>): Run[] {
+  const key = (c: EvalCase) => `${c.course}/${c.day}/${c.position}/${c.edit?.replace ?? ""}`;
   return saved.map((r) => {
-    const testCase = cases.find((c) => c.course === r.testCase.course && c.day === r.testCase.day && c.position === r.testCase.position);
+    const testCase = cases.find((c) => key(c) === key(r.testCase));
     if (!testCase) throw new Error(`No label case for ${r.testCase.course} day ${r.testCase.day} item ${r.testCase.position + 1}`);
-    return { ...r, testCase, score: scoreFactCheck(r.issues, testCase.labels) };
+    const parsed = FactCheckOutputSchema.safeParse(r.findings);
+    let { issues, passed } = r;
+    if (parsed.success) {
+      const course = courses.get(testCase.course)!;
+      const input = factCheckInputFor(course, findLesson(course, testCase.day, testCase.position), testCase.edit);
+      issues = issuesFromFindings(parsed.data.findings, input.sources, input.contentMd);
+      passed = factCheckPassed(issues);
+    }
+    return { ...r, testCase, issues, passed, score: scoreFactCheck(issues, testCase.labels) };
   });
 }
 
@@ -88,15 +109,16 @@ async function main() {
   if (!Number.isInteger(reps) || reps < 1) throw new Error("--reps must be a positive integer");
   const { cases } = EvalLabelsFileSchema.parse(JSON.parse(await readFile(values.labels, "utf8")));
 
+  const courses = await loadCourses(cases);
   let runs: Run[];
   let cost: string;
   let modelName: string;
   if (values.rescore) {
     const saved = JSON.parse(await readFile(values.rescore, "utf8")) as { summary: { model: string; cost: string }; runs: Run[] };
-    runs = rescoreRuns(saved.runs, cases);
+    runs = rescoreRuns(saved.runs, cases, courses);
     [cost, modelName] = [saved.summary.cost, saved.summary.model];
   } else {
-    const result = await runChecks(cases, model, reps);
+    const result = await runChecks(cases, courses, model, reps);
     [runs, cost, modelName] = [result.runs, formatCostUsd(result.costUsd), model ?? "default"];
   }
 
@@ -104,7 +126,7 @@ async function main() {
     const { course, day, position } = r.testCase;
     const s = r.score;
     console.log(
-      `${`${course} d${day}i${position + 1}`.padEnd(18)} ${r.passed ? "pass" : "FAIL"}  ` +
+      `${`${course} d${day}i${position + 1}${r.testCase.edit ? " (seeded)" : ""}`.padEnd(27)} ${r.passed ? "pass" : "FAIL"}  ` +
         `false alarms ${s.falseAlarms.length}  caught ${s.caught.length}/${s.caught.length + s.missed.length}  unlabeled ${s.unlabeled.length}`,
     );
     for (const i of r.issues) console.log(`    [${i.problem}] ${i.claim.slice(0, 140)}`);
@@ -114,6 +136,7 @@ async function main() {
   const supported = sum((r) => r.testCase.labels.filter((l) => l.truth === "supported").length);
   const errors = sum((r) => r.testCase.labels.filter((l) => l.truth === "error").length);
   const clean = runs.filter((r) => r.testCase.labels.length === 0);
+  const seeded = runs.filter((r) => r.testCase.edit);
   const summary = {
     model: modelName,
     runs: runs.length,
@@ -122,6 +145,7 @@ async function main() {
     caught: `${sum((r) => r.score.caught.length)}/${errors}`,
     unlabeledIssues: sum((r) => r.score.unlabeled.length),
     cleanLessonsFailed: `${clean.filter((r) => !r.passed).length}/${clean.length}`,
+    seededFailed: `${seeded.filter((r) => !r.passed).length}/${seeded.length}`,
     cost,
   };
   console.log("\nSummary");

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DISCLAIMERS } from "@/lib/disclaimers";
 import type { callJson } from "@/lib/llm/client";
 import { examineLesson, examinerSchemaFor } from "@/lib/pipeline/examiner";
-import { factCheckLesson, factCheckPassed, issuesFromFindings, quoteFoundInPassages } from "@/lib/pipeline/factChecker";
+import { claimFoundInLesson, factCheckLesson, factCheckPassed, issuesFromFindings, quoteFoundInPassages } from "@/lib/pipeline/factChecker";
 import { lessonOutputSchemaFor, writeLesson } from "@/lib/pipeline/lessonWriter";
 import type { LessonWriterPromptInput } from "@/lib/pipeline/prompts/lessonWriter";
 import type { CurriculumOutput, ExaminerOutput, FactCheckIssue, LessonWriterOutput } from "@/lib/pipeline/schemas";
@@ -86,9 +86,9 @@ describe("fact-checker", () => {
     const call = vi.fn(async () => failing) as unknown as typeof callJson;
     const result = await factCheckLesson({ contentMd: lesson.contentMd, sources: passages, level: "beginner" }, { callJson: call });
     expect(result.issues.map((i) => [i.problem, i.claim])).toEqual([
-      ["contradicted", "A workbook holds only one worksheet"],
-      ["contradicted", "Ctrl+Arrow deletes the current row"],
-      ["unsupported", "Excel was first released in 1975"],
+      ["contradicted", "Alexander was born in Pella in 356 BCE"],
+      ["contradicted", "Alexander, then 20, moved quickly"],
+      ["unsupported", "taught by the philosopher Aristotle"],
     ]);
     expect(result.passed).toBe(false);
     expect(vi.mocked(call).mock.calls[0]![0]).toMatchObject({ agent: "factChecker", model: "fast" });
@@ -102,9 +102,19 @@ describe("fact-checker", () => {
     expect(quoteFoundInPassages("Use Ctrl+Arrow to jump", 9, passages)).toBe(true);
     expect(quoteFoundInPassages("A workbook has 3 sheets", 1, passages)).toBe(false);
     expect(quoteFoundInPassages(" ... ", 1, passages)).toBe(false);
+    expect(quoteFoundInPassages("adds 5 to the result. =5+2*3", null, [{ index: 3, title: "MS", grounding: "adds 5 to the result. **=5+2\\*3**" }])).toBe(true);
   });
 
-  it("issuesFromFindings drops supported findings and downgrades contradictions without a real quote", () => {
+  it("claimFoundInLesson matches quoted lesson text across citations, emphasis, tables and ellipses", () => {
+    const md = "## Gaugamela\nThe battle was fought on **1 October 331 BCE** [1][2].\n\n| Battle | Year |\n| --- | --- |\n| Issus | 333 BC |";
+    expect(claimFoundInLesson("The battle was fought on 1 October 331 BCE", md)).toBe(true);
+    expect(claimFoundInLesson("“the battle was fought ... 331 BCE [1]”", md)).toBe(true);
+    expect(claimFoundInLesson("Issus 333 BC", md)).toBe(true);
+    expect(claimFoundInLesson("The battle was fought on October 31", md)).toBe(false);
+    expect(claimFoundInLesson("...", md)).toBe(false);
+  });
+
+  it("issuesFromFindings drops supported findings and claims not in the lesson, and downgrades contradictions without a real quote", () => {
     const finding = (verdict: "supported" | "unsupported" | "contradicted" | "outdated", passageSays: string | null, sourceIndex: number | null = 1) => ({
       claim: `${verdict}: ${passageSays}`,
       sourceIndex,
@@ -119,8 +129,10 @@ describe("fact-checker", () => {
         finding("outdated", "A workbook holds 3 sheets"),
         finding("contradicted", null, null),
         finding("unsupported", null, null),
+        { ...finding("contradicted", "A workbook contains worksheets."), claim: "a sentence the lesson never says" },
       ],
       passages,
+      "supported: A workbook contains worksheets. contradicted: A workbook contains worksheets. outdated: A workbook holds 3 sheets contradicted: null unsupported: null",
     );
     expect(issues.map((i) => i.problem)).toEqual(["contradicted", "unsupported", "unsupported", "unsupported"]);
   });

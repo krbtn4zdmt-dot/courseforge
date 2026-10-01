@@ -284,3 +284,26 @@ Format:
   - The writer rule isn't needed for these cases, so it isn't added.
   - The fix belongs in the fact-checker: drop findings whose claim isn't in the lesson. That needs approval because it changes AGENTS.md §7 again.
 - Decisions: none yet.
+
+## 2026-10-01: Bad-source handling: the fact-checker only flags what the lesson says (supports 1.6 and the SPEC flag-rate target)
+- Changed:
+  - `claimFoundInLesson`: `issuesFromFindings` drops findings whose claim isn't quoted from the lesson. The prompt asks for claims copied word for word, never a sentence from the passages.
+  - Quote matching ignores markdown escapes: a passage's `=5+2\*3` now matches a quote's `=5+2*3`. Before this, real contradictions were downgraded.
+  - Prompt: a claim any cited passage supports is `supported` even when another passage, or another part of the same one, disagrees.
+  - Fact-checker eval: 7 seeded errors (`edit`: one cited fact changed in a clean lesson: a number, an outdated spec, a formula result, a name, a comparison, a menu path) plus the `seededFailed` metric. `--rescore` now recomputes issues from saved findings with the current code, so code-side fixes need no API calls.
+  - Relabeled: the shipped Hydaspes lesson says "May 326 BCE" and calls the one site giving 526 BCE wrong. Its earlier "catch" was source [6]'s own sentence, so "526" is now `supported`.
+  - The lesson-writer rule from the plan wasn't added: the writer eval showed it already hedges or uses the majority version.
+- Evidence:
+  - `pnpm test` 361/361 passed (new tests: `claimFoundInLesson`, findings dropped when not in the lesson, markdown-escaped quotes, `applyEdit`). Typecheck and lint are clean.
+  - Fact-checker eval, 34 cases × 2 runs:
+    - Supported claims flagged: 0/34.
+    - Clean lessons failed: 0/20.
+    - Seeded errors flagged: 13/14. Seeded lessons failed: 11/14 (9/14 before the escape fix, by `--rescore`).
+    - Non-seeded failures: 3. Two are false alarms: a correct hedge about Britannica's two dates, and a correct COUNT description. One is the EBSCO "Darius II" typo still tripping the checker.
+  - Writer eval, 6 bad-source lessons × 2: fact-check failures fell from 5/12 to 2/12, and both remaining ones flagged a correct claim against a bad passage; the conflict rule was added after this run.
+  - Alexander (3 days), full run: 200.5s, $0.78 ($1.82 per 7 days), 6/6 ready, 0 rewrites, flag rate 0% (first run under the 5% target). The course gives "1 October 331" four times and never "October 31". Earlier Alexander runs: $1.17/$1.04/$1.11/$0.89 with 1–5 rewrites.
+- Leftovers:
+  - A single run of 6 lessons; Excel (18 lessons) wasn't rerun.
+  - 1.6 stays `[~]`: 1 uncited section in this Alexander run (course review "Quick self-check").
+  - $0.75 per 7 days is still not reached ($1.82 here).
+- Decisions: one row added to the ARCHITECTURE.md decisions log.

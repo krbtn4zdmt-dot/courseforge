@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { factCheckInputFor, findLesson, labelMatches, scoreFactCheck, type EvalLabel } from "@/lib/pipeline/factCheckEval";
+import { applyEdit, factCheckInputFor, findLesson, labelMatches, scoreFactCheck, type EvalLabel } from "@/lib/pipeline/factCheckEval";
 import { citedFactCheckSources } from "@/lib/pipeline/factChecker";
 import type { CourseResult, GeneratedLesson } from "@/lib/pipeline/runCourse";
 import type { FactCheckIssue } from "@/lib/pipeline/schemas";
@@ -80,5 +80,17 @@ describe("factCheckInputFor", () => {
     const c = course([{ status: "failed", dayNumber: 1, position: 1, title: "t", error: "e" }, { status: "ready", lesson }]);
     expect(findLesson(c, 1, 0)).toBe(lesson);
     expect(() => findLesson(c, 1, 1)).toThrow("No ready lesson at day 1, item 2");
+  });
+});
+
+describe("applyEdit", () => {
+  it("replaces the text once, and passes the lesson through without an edit", () => {
+    expect(applyEdit("born in 356 BC [1]", { find: "356", replace: "346" })).toBe("born in 346 BC [1]");
+    expect(applyEdit("unchanged", undefined)).toBe("unchanged");
+  });
+
+  it("throws when the text is missing or ambiguous", () => {
+    expect(() => applyEdit("a b", { find: "c", replace: "d" })).toThrow("appears 0 times");
+    expect(() => applyEdit("a a", { find: "a", replace: "d" })).toThrow("appears 2 times");
   });
 });
