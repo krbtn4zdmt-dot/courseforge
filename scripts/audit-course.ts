@@ -1,5 +1,5 @@
 // Mechanical quality audit of generated courses: pnpm audit:course out/<slug>.json [more.json ...]
-// Checks pacing, length, citations per section, quote length, verbatim copying, source credibility,
+// Checks pacing, length, citations per section (prose) or per card (interactive lessons), reading between actions, quote length, verbatim copying, source credibility,
 // quiz answer balance and the SPEC targets. Accuracy and clarity still need a human (or /test-course).
 import { readFile } from "node:fs/promises";
 
@@ -28,6 +28,15 @@ async function main() {
     const lengths = audit.lessons.map((l) => l.words);
     if (lengths.length) {
       console.log(`Lessons: ${Math.min(...lengths)}–${Math.max(...lengths)} words; videos per lesson ${audit.lessons.map((l) => l.videos).join(",")}`);
+    }
+    const cardLessons = audit.lessons.flatMap((l) => (l.cards ? [l.cards] : []));
+    if (cardLessons.length) {
+      const types = new Set(cardLessons.flatMap((c) => c.activityTypes));
+      console.log(
+        `Cards: ${cardLessons.reduce((n, c) => n + c.cards, 0)} in ${cardLessons.length} lessons; activity types used ${[...types].join(", ")}; ` +
+          `most reading between actions ${Math.max(...cardLessons.map((c) => c.maxReadingBetweenActions))} words; ` +
+          `videos saved for later ${cardLessons.reduce((n, c) => n + c.videosSavedForLater, 0)}`,
+      );
     }
     console.log(`Quiz answers: ${JSON.stringify(audit.quizAnswerSpread)}${audit.disclaimerNeeded ? " · sensitive topic: disclaimer shown" : ""}`);
     if (audit.problems.length) {

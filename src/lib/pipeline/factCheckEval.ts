@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { stripMarkdownNoise } from "@/lib/research/grounding";
 
+import { citedIndexesOf, lessonTextOf } from "./cards";
 import { citedFactCheckSources } from "./factChecker";
 import { selectLessonSources } from "./lessonSources";
 import type { FactCheckerPromptInput } from "./prompts/factChecker";
@@ -96,8 +97,8 @@ export function applyEdit(contentMd: string, edit: EvalCase["edit"]): string {
 /** The fact-checker input the pipeline would build for this shipped lesson today, with any seeded error applied. */
 export function factCheckInputFor(course: CourseResult, lesson: GeneratedLesson, edit?: EvalCase["edit"]): FactCheckerPromptInput {
   return {
-    contentMd: applyEdit(lesson.content.contentMd, edit),
-    sources: citedFactCheckSources(rebuildLessonSources(course, lesson), lesson.content.citedSourceIndexes),
+    contentMd: applyEdit(lessonTextOf(lesson.content, lesson.videos), edit),
+    sources: citedFactCheckSources(rebuildLessonSources(course, lesson), citedIndexesOf(lesson.content)),
     level: course.intake.level,
   };
 }

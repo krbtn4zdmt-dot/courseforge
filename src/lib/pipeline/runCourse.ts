@@ -3,6 +3,7 @@ import "server-only";
 import { mapWithConcurrency } from "@/lib/concurrency";
 import type { LlmCallLog } from "@/lib/llm/cost";
 
+import { cardCitations, renderCardsText } from "./cards";
 import { designCurriculum, type CurriculumResult } from "./curriculum";
 import { examineLesson } from "./examiner";
 import { citedFactCheckSources, factCheckLesson, type FactCheckResult } from "./factChecker";
@@ -16,6 +17,7 @@ import type {
   CurriculumOutput,
   ExaminerOutput,
   FactCheckIssue,
+  LessonContent,
   LessonWriterOutput,
   PlannerOutput,
   ResearcherOutput,
@@ -99,7 +101,8 @@ export interface GeneratedLesson {
   position: number;
   spec: SyllabusItem;
   slot: LessonSlot;
-  content: LessonWriterOutput;
+  /** Activity cards; lessons generated before task 1.9 hold one markdown article (ProseLessonContent). */
+  content: LessonContent;
   /** Cited sources only, keeping the numbers used in contentMd. */
   sources: { index: number; title: string; url: string }[];
   videos: Source[];
@@ -149,6 +152,7 @@ export async function generateLesson(req: LessonRequest, deps: LessonDeps = {}):
     slot,
     syllabus: req.syllabus,
     sources,
+    videos: videos.map((v) => ({ title: v.title, excerpt: v.excerpt })),
     level: req.intake.level,
     topicType: req.plan.topicType,
     sensitiveDomain: req.plan.sensitiveDomain,
@@ -156,8 +160,8 @@ export async function generateLesson(req: LessonRequest, deps: LessonDeps = {}):
   const check = (content: LessonWriterOutput): Promise<FactCheckResult> =>
     factCheckLesson(
       {
-        contentMd: content.contentMd,
-        sources: citedFactCheckSources(sources, content.citedSourceIndexes),
+        contentMd: renderCardsText(content.activities, videos),
+        sources: citedFactCheckSources(sources, cardCitations(content.activities)),
         level: req.intake.level,
       },
       deps,
@@ -201,7 +205,10 @@ export async function generateLesson(req: LessonRequest, deps: LessonDeps = {}):
     }
   }
 
-  const quiz = await examineLesson({ contentMd: content.contentMd, objectives: spec.objectives, level: req.intake.level }, deps);
+  const quiz = await examineLesson(
+    { contentMd: renderCardsText(content.activities, videos), objectives: spec.objectives, level: req.intake.level },
+    deps,
+  );
 
   return {
     dayNumber: req.dayNumber,
@@ -209,7 +216,7 @@ export async function generateLesson(req: LessonRequest, deps: LessonDeps = {}):
     spec,
     slot,
     content,
-    sources: content.citedSourceIndexes.map((index) => ({ index, title: sources[index - 1]!.title, url: sources[index - 1]!.url })),
+    sources: cardCitations(content.activities).map((index) => ({ index, title: sources[index - 1]!.title, url: sources[index - 1]!.url })),
     videos,
     quiz,
     factCheck: {

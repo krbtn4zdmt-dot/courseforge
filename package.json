@@ -17,7 +17,8 @@
     "check:live": "tsx --env-file-if-exists=.env.local scripts/live-checks.ts",
     "audit:course": "tsx --conditions=react-server scripts/audit-course.ts",
     "eval:factcheck": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/eval-factcheck.ts",
-    "eval:writer": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/eval-writer.ts"
+    "eval:writer": "tsx --env-file-if-exists=.env.local --conditions=react-server scripts/eval-writer.ts",
+    "preview:day": "tsx --conditions=react-server scripts/preview-day.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

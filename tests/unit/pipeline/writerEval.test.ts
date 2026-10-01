@@ -12,14 +12,15 @@ describe("badFactsIn", () => {
 });
 
 describe("writerInputFor", () => {
-  it("rebuilds the first-draft writer input from the stored course", () => {
+  it("rebuilds the first-draft writer input from the stored course, with today's time split", () => {
     const lesson = {
       dayNumber: 2,
       position: 0,
-      slot: { estMinutes: 30 },
+      slot: { estMinutes: 20, readingMinutes: 11, mediaMinutes: 4, practiceMinutes: 5 }, // the split before task 1.9
       spec: { title: "Thebes", subtopics: ["Thebes"] },
       content: { contentMd: "x", citedSourceIndexes: [1] },
       sources: [{ index: 1, title: "A", url: "https://a.org" }],
+      videos: [{ url: "https://www.youtube.com/watch?v=t", title: "Thebes falls", type: "video", score: 1, excerpt: "Chan · 6 min", grounding: null }],
     } as unknown as GeneratedLesson;
     const course = {
       intake: { level: "beginner" },
@@ -30,9 +31,10 @@ describe("writerInputFor", () => {
     expect(writerInputFor(course, lesson)).toEqual({
       lesson: lesson.spec,
       dayNumber: 2,
-      slot: lesson.slot,
+      slot: { estMinutes: 20, readingMinutes: 7, mediaMinutes: 4, practiceMinutes: 9 },
       syllabus: { courseTitle: "C" },
       sources: [{ title: "A", url: "https://a.org", grounding: "Thebes fell.", excerptOnly: false }],
+      videos: [{ title: "Thebes falls", excerpt: "Chan · 6 min" }],
       level: "beginner",
       topicType: "knowledge",
       sensitiveDomain: null,

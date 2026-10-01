@@ -10,6 +10,7 @@ import { parseArgs } from "node:util";
 import { mapWithConcurrency } from "@/lib/concurrency";
 import { formatCostUsd, type LlmCallLog } from "@/lib/llm/cost";
 import { findLesson } from "@/lib/pipeline/factCheckEval";
+import { cardCitations, renderCardsText } from "@/lib/pipeline/cards";
 import { citedFactCheckSources, factCheckLesson } from "@/lib/pipeline/factChecker";
 import { writeLesson } from "@/lib/pipeline/lessonWriter";
 import type { CourseResult } from "@/lib/pipeline/runCourse";
@@ -54,11 +55,12 @@ async function main() {
     const course = courses.get(testCase.course)!;
     const input = writerInputFor(course, findLesson(course, testCase.day, testCase.position));
     const content = await writeLesson(input, { onUsage }, { tier: writer.draftTier, effort: writer.effort });
+    const text = renderCardsText(content.activities, input.videos);
     const check = await factCheckLesson(
-      { contentMd: content.contentMd, sources: citedFactCheckSources(input.sources, content.citedSourceIndexes), level: input.level },
+      { contentMd: text, sources: citedFactCheckSources(input.sources, cardCitations(content.activities)), level: input.level },
       { onUsage },
     );
-    return { testCase, rep, badFacts: badFactsIn(content.contentMd, testCase.badFacts), passed: check.passed, issues: check.issues, contentMd: content.contentMd };
+    return { testCase, rep, badFacts: badFactsIn(text, testCase.badFacts), passed: check.passed, issues: check.issues, contentMd: text };
   });
 
   for (const r of runs) {

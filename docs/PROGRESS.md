@@ -384,3 +384,27 @@ Format:
   - Next options for the user to choose between: generate days 2–7 with the Message Batches API (50% off, slower; fits the Phase 3 background jobs); task 1.9's shorter paged format, which roughly halves reading words per day; or revise the target to about $1.
 - Decisions: one row added to the ARCHITECTURE.md decisions log.
 
+
+## 2026-10-01: 1.9 Interactive lesson format, code done; live runs waiting on API credits (in progress)
+- Context: the user chose to build 1.9 before the cost work continues, and approved a shorter reading share: reading ~35% of a lesson (skills 30%), videos 20% (15%), activities, practice and quiz the rest, as in the Day 2 prototypes. The old split put 45–55% of every lesson into reading, so cards alone would have raised cost.
+- Changed:
+  - `schemas.ts`: `LessonWriterOutput` is `{ activities: Card[], keyTerms }`. There are 10 card types (reading, video, predict, decide, match, order, mythFact, spotError, practiceStep, explainBack), each with `id`, `part` and `cites`. Validation covers pages of at most 80 words (+10 tolerance), citations on every card except video and practiceStep, inline [n] listed in the card's cites, answer and error indexes, exactly one best decision, at least one myth, at most one explainBack, and the teach-first part structure. Older prose lessons are typed `ProseLessonContent`.
+  - `cards.ts` (new): structure rules, reading between actions, cited sources, `renderCardsText` (one text for the fact-checker, examiner, audit and markdown, with myths and the spot-the-error mistake marked as wrong on purpose), video budget (`videoPlan`: a clip longer than the lesson's video minutes is "save for later"), and time estimates.
+  - `lessonWriter.ts`: input-dependent validation checks citation numbers, video numbers (each placed once, at least one when there are videos) and whether practice steps match the lesson. The prompt was rewritten for teach-first cards. It gives the reading word range, the number of reading cards, about how many activity cards, the practice-step minutes and the videos with the video budget.
+  - Fact-checker: the prompt checks every card, including outcomes, answers, corrections and model answers, and skips content that is wrong on purpose. Code drops findings quoted from a myth or a deliberate mistake (`claimIsDeliberateError`).
+  - `timeBudget.ts`: the new split. `runCourse`, the evals, `gen:lesson` and the course markdown now read cards; the evals and the audit still read prose lessons. `eval:writer` redrafts with today's split.
+  - `audit:course`: for card lessons it checks citations per card, long pages, structure, reading between actions (limit 300 words, about 90 seconds), at least 3 activity types, and estimated time against the slot (±25%).
+  - `pnpm preview:day out/<slug>.json --day N` (new): writes a self-contained HTML player (`scripts/preview/player.html`, built on the Day 2 prototypes) for one generated day. It plays every card type and the quiz with confidence ratings, and tracks points, combo and time box. Over-budget videos default to "save for later". The disclaimer is shown on sensitive topics.
+  - Docs: AGENTS.md §5 (new contract) and §7; SPEC.md; BUILD_PLAN.md 1.9 (time split, `[~]`); the ARCHITECTURE.md split table, data-model notes and decisions log; CLAUDE.md.
+- Evidence:
+  - `pnpm test` 388/388 passed. New tests: `cards.test.ts`, `dayPreview.test.ts`, card audit, writer validation (practice, videos, citations), the deliberate-error drop, the new split and schema invalid cases. Typecheck and lint are clean. No secrets in the diff; the SDK is used only in `src/lib/llm/`.
+  - Player: a scripted Chromium play-through of a synthetic two-lesson day covered predict, reading, video (one over budget), decide, match, order, myth/fact, spot-the-error, practice, explain-back and the quiz. It reached the summary with no errors, and phone width (380px, dark mode) has no horizontal overflow.
+  - `eval:factcheck --rescore` and `audit:course` still run on the stored prose courses.
+- 1.9 acceptance status:
+  - ✅ Card types, teach-first structure, pacing, citations per card, the video budget, audit checks, the fact-checker covering every card, and a local preview.
+  - ❌ Not yet run (they need API credits, which ran out earlier today): regenerate the Alexander and Excel courses, check that `eval:writer` and `eval:factcheck` show no regression, compare cost per 7-day course with the prose format, and preview one real day of each.
+- Leftovers:
+  - The live runs above.
+  - Card lessons should also clear 1.6's uncited-sections problem; confirm it on the regenerated courses.
+  - The eval corpus is prose, so `eval:factcheck` measures the checker on prose. A card corpus comes from the regenerated courses.
+- Decisions: one row in the ARCHITECTURE.md decisions log; the time split recorded in BUILD_PLAN.md and SPEC.md.

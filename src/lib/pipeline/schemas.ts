@@ -5,6 +5,8 @@ import { z } from "zod";
 import type { DisclaimerDomain } from "@/lib/disclaimers";
 import { stripCode } from "@/lib/markdown";
 
+import { pageWordCount, structureProblems } from "./cards";
+
 import type { TopicType } from "./timeBudget";
 
 // Zod schemas for every agent output in docs/AGENTS.md.
@@ -195,39 +197,160 @@ export function extractCitationIndexes(markdown: string): number[] {
   return [...found].sort((a, b) => a - b);
 }
 
+// A lesson is an ordered list of activity cards (task 1.9). Cards sharing a `part` form one part of the
+// lesson: an optional predict card, then a reading card, then an optional video, then at least one activity.
+// `cites` holds the source numbers a card relies on; reading pages also cite inline as [n].
+
+export const MAX_WORDS_PER_PAGE = 80;
+/** Validation allows this much over MAX_WORDS_PER_PAGE before sending a draft back. */
+export const PAGE_WORDS_TOLERANCE = 10;
+
+const text = z.string().min(1);
+const card = {
+  id: z.string().min(1),
+  part: z.string().min(1),
+  cites: z.array(z.int().positive()),
+};
+
+export const ReadingCardSchema = z.object({ ...card, type: z.literal("reading"), title: text, pages: z.array(text).min(2).max(3) });
+export const VideoCardSchema = z.object({
+  ...card,
+  type: z.literal("video"),
+  /** 1-based number of one of the lesson's curated videos. */
+  video: z.int().positive(),
+  watchFor: z.array(text).min(2).max(3),
+});
+export const PredictCardSchema = z.object({
+  ...card,
+  type: z.literal("predict"),
+  prompt: text,
+  options: z.array(text).min(2).max(4),
+  /** 0-based index of the right option. */
+  answer: z.int().nonnegative(),
+  reveal: text,
+});
+export const DecideCardSchema = z.object({
+  ...card,
+  type: z.literal("decide"),
+  scenario: text,
+  options: z.array(z.object({ text, outcome: text, best: z.boolean() })).min(2).max(4),
+});
+export const MatchCardSchema = z.object({
+  ...card,
+  type: z.literal("match"),
+  prompt: text,
+  pairs: z.array(z.object({ left: text, right: text })).min(3).max(6),
+});
+export const OrderCardSchema = z.object({
+  ...card,
+  type: z.literal("order"),
+  prompt: text,
+  /** In the correct order; the player shuffles them. */
+  items: z.array(text).min(3).max(6),
+  explain: text,
+});
+export const MythFactCardSchema = z.object({
+  ...card,
+  type: z.literal("mythFact"),
+  items: z.array(z.object({ statement: text, fact: z.boolean(), why: text })).min(2).max(4),
+});
+export const SpotErrorCardSchema = z.object({
+  ...card,
+  type: z.literal("spotError"),
+  prompt: text,
+  /** Short sentences or steps; exactly one (errorIndex) contains a deliberate mistake. */
+  segments: z.array(text).min(3).max(5),
+  errorIndex: z.int().nonnegative(),
+  correction: text,
+  why: text,
+});
+export const PracticeStepCardSchema = z.object({
+  ...card,
+  type: z.literal("practiceStep"),
+  instructions: text,
+  expectedOutcome: text,
+  minutes: z.int().min(1).max(20),
+});
+export const ExplainBackCardSchema = z.object({
+  ...card,
+  type: z.literal("explainBack"),
+  prompt: text,
+  keyPoints: z.array(text).length(3),
+  modelAnswer: text,
+});
+
+export const CardSchema = z.discriminatedUnion("type", [
+  ReadingCardSchema,
+  VideoCardSchema,
+  PredictCardSchema,
+  DecideCardSchema,
+  MatchCardSchema,
+  OrderCardSchema,
+  MythFactCardSchema,
+  SpotErrorCardSchema,
+  PracticeStepCardSchema,
+  ExplainBackCardSchema,
+]);
+export type Card = z.infer<typeof CardSchema>;
+export type CardType = Card["type"];
+
+/** Cards that may have no citation: a video's notes point at the lesson's own teaching, and a practice step is a task. */
+export const UNCITED_CARD_TYPES: readonly CardType[] = ["video", "practiceStep"];
+
 export const LessonWriterOutputSchema = z
   .object({
-    contentMd: z.string().min(200),
+    activities: z.array(CardSchema).min(3),
     keyTerms: z
       .array(z.object({ term: z.string().min(1), definition: z.string().min(1) }))
       .min(3)
       .max(8),
-    practiceTask: z
-      .object({ instructions: z.string().min(1), expectedOutcome: z.string().min(1) })
-      .nullable(),
-    citedSourceIndexes: z.array(z.int().positive()).min(1),
   })
   .superRefine((v, ctx) => {
-    const inline = extractCitationIndexes(v.contentMd);
-    const listed = new Set(v.citedSourceIndexes);
-    const missing = inline.filter((n) => !listed.has(n));
-    const unused = [...listed].filter((n) => !inline.includes(n));
-    if (missing.length) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["citedSourceIndexes"],
-        message: `cited inline but not listed: ${missing.join(", ")}`,
-      });
+    const ids = v.activities.map((c) => c.id);
+    if (new Set(ids).size !== ids.length) ctx.addIssue({ code: "custom", path: ["activities"], message: "card ids must be unique" });
+    v.activities.forEach((c, i) => {
+      const at = (...path: (string | number)[]) => ["activities", i, ...path];
+      if (!c.cites.length && !UNCITED_CARD_TYPES.includes(c.type)) {
+        ctx.addIssue({ code: "custom", path: at("cites"), message: `${c.type} card "${c.id}" must cite at least one source` });
+      }
+      if (c.type === "reading") {
+        c.pages.forEach((page, j) => {
+          const n = pageWordCount(page);
+          if (n > MAX_WORDS_PER_PAGE + PAGE_WORDS_TOLERANCE) {
+            ctx.addIssue({ code: "custom", path: at("pages", j), message: `page has ${n} words (max ${MAX_WORDS_PER_PAGE})` });
+          }
+          const stray = extractCitationIndexes(page).filter((n) => !c.cites.includes(n));
+          if (stray.length) ctx.addIssue({ code: "custom", path: at("cites"), message: `pages cite ${stray.join(", ")} but cites doesn't list them` });
+        });
+      }
+      if (c.type === "predict" && c.answer >= c.options.length) {
+        ctx.addIssue({ code: "custom", path: at("answer"), message: `answer ${c.answer} is out of range (${c.options.length} options)` });
+      }
+      if (c.type === "spotError" && c.errorIndex >= c.segments.length) {
+        ctx.addIssue({ code: "custom", path: at("errorIndex"), message: `errorIndex ${c.errorIndex} is out of range (${c.segments.length} segments)` });
+      }
+      if (c.type === "decide" && c.options.filter((o) => o.best).length !== 1) {
+        ctx.addIssue({ code: "custom", path: at("options"), message: "exactly one option must be best" });
+      }
+      if (c.type === "mythFact" && c.items.every((x) => x.fact) ) {
+        ctx.addIssue({ code: "custom", path: at("items"), message: "include at least one myth" });
+      }
+    });
+    if (v.activities.filter((c) => c.type === "explainBack").length > 1) {
+      ctx.addIssue({ code: "custom", path: ["activities"], message: "at most one explainBack card per lesson" });
     }
-    if (unused.length) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["citedSourceIndexes"],
-        message: `listed but never cited inline: ${unused.join(", ")}`,
-      });
-    }
+    for (const message of structureProblems(v.activities)) ctx.addIssue({ code: "custom", path: ["activities"], message });
   });
 export type LessonWriterOutput = z.infer<typeof LessonWriterOutputSchema>;
+
+/** A lesson from before task 1.9: one markdown article. Stored courses and the eval corpus still hold these. */
+export interface ProseLessonContent {
+  contentMd: string;
+  keyTerms: LessonWriterOutput["keyTerms"];
+  practiceTask: { instructions: string; expectedOutcome: string } | null;
+  citedSourceIndexes: number[];
+}
+export type LessonContent = LessonWriterOutput | ProseLessonContent;
 
 // ---------- 6. Examiner ----------
 

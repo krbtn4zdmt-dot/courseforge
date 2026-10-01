@@ -5,6 +5,7 @@ import { z } from "zod";
 import { rebuildLessonSources } from "./factCheckEval";
 import type { LessonWriterPromptInput } from "./prompts/lessonWriter";
 import type { CourseResult, GeneratedLesson } from "./runCourse";
+import { splitLesson } from "./timeBudget";
 
 // Lesson-writer eval (pnpm eval:writer): rewrites shipped lessons whose sources carry a known bad fact
 // (a source error or an outdated claim) and checks whether the new draft repeats it.
@@ -31,9 +32,11 @@ export function writerInputFor(course: CourseResult, lesson: GeneratedLesson): L
   return {
     lesson: lesson.spec,
     dayNumber: lesson.dayNumber,
-    slot: lesson.slot,
+    // Today's split for the same lesson length (the stored slot may predate the interactive split).
+    slot: splitLesson(lesson.slot.estMinutes, course.syllabus.plan.topicType),
     syllabus: course.syllabus.curriculum.syllabus,
     sources: rebuildLessonSources(course, lesson),
+    videos: lesson.videos.map((v) => ({ title: v.title, excerpt: v.excerpt })),
     level: course.intake.level,
     topicType: course.syllabus.plan.topicType,
     sensitiveDomain: course.syllabus.plan.sensitiveDomain,

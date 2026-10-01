@@ -70,24 +70,16 @@ export const invalidCases: Record<AgentName, InvalidCase[]> = {
     { name: "day with no items", mutate: (o) => (o.days[1].lessons = []), path: "days.1.lessons" },
   ],
   lessonWriter: [
-    {
-      name: "inline citation not listed",
-      mutate: (o) => (o.citedSourceIndexes = [1]),
-      path: "citedSourceIndexes",
-    },
-    {
-      name: "listed source never cited",
-      mutate: (o) => (o.citedSourceIndexes = [1, 2, 3]),
-      path: "citedSourceIndexes",
-    },
-    { name: "no citations", mutate: (o) => (o.citedSourceIndexes = []), path: "citedSourceIndexes" },
+    { name: "card without citations", mutate: (o) => (o.activities[1].cites = []), path: "activities.1.cites" },
+    { name: "page over the word limit", mutate: (o) => (o.activities[1].pages[0] = "word ".repeat(95)), path: "activities.1.pages.0" },
+    { name: "inline citation not in the card's cites", mutate: (o) => (o.activities[1].cites = [1]), path: "activities.1.cites" },
+    { name: "only one page", mutate: (o) => (o.activities[1].pages = o.activities[1].pages.slice(0, 1)), path: "activities.1.pages" },
+    { name: "predict answer out of range", mutate: (o) => (o.activities[0].answer = 5), path: "activities.0.answer" },
+    { name: "duplicate card ids", mutate: (o) => (o.activities[5].id = "c1"), path: "activities" },
+    { name: "part with no activity", mutate: (o) => (o.activities = o.activities.slice(0, 4)), path: "activities" },
+    { name: "activity before the teaching", mutate: (o) => (o.activities[4].part = "A prince of Macedon"), path: "activities" },
+    { name: "unknown card type", mutate: (o) => (o.activities[2].type = "quiz"), path: "activities.2.type" },
     { name: "too few key terms", mutate: (o) => (o.keyTerms = o.keyTerms.slice(0, 2)), path: "keyTerms" },
-    { name: "content too short", mutate: (o) => (o.contentMd = "Alexander was a king [1] [2]."), path: "contentMd" },
-    {
-      name: "practice task missing expectedOutcome",
-      mutate: (o) => (o.practiceTask = { instructions: "Draw a map of the empire." }),
-      path: "practiceTask.expectedOutcome",
-    },
   ],
   examiner: [
     { name: "two questions", mutate: (o) => (o.questions = o.questions.slice(0, 2)), path: "questions" },

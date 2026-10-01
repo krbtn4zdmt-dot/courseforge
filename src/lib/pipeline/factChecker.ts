@@ -66,9 +66,22 @@ export function claimFoundInLesson(claim: string, contentMd: string): boolean {
   return parts.length > 0 && parts.every((part) => lesson.includes(part));
 }
 
+/** Lines of a rendered card lesson that are wrong on purpose: myths and spot-the-error mistakes (cards.ts). */
+const DELIBERATE_ERROR_LINE = /^- (?:Myth \(false on purpose\)|Deliberate mistake): .*$/gm;
+
+/** True when the claim is quoted from a myth or a spot-the-error mistake, which the lesson states is wrong. */
+export function claimIsDeliberateError(claim: string, lessonText: string): boolean {
+  const parts = quoteParts(claim.replace(/\[\d+(?:\s*,\s*\d+)*\]/g, " "));
+  if (!parts.length) return false;
+  return [...lessonText.matchAll(DELIBERATE_ERROR_LINE)].some((m) => {
+    const line = normalizeForQuote(m[0]);
+    return parts.every((part) => line.includes(part));
+  });
+}
+
 /**
- * Findings to issues. Dropped: "supported" findings, and findings whose claim isn't in the lesson (the model
- * sometimes lists a passage's own sentence). A contradicted or outdated verdict whose quote isn't in the
+ * Findings to issues. Dropped: "supported" findings, findings whose claim isn't in the lesson (the model
+ * sometimes lists a passage's own sentence), and claims taken from a myth or a deliberate mistake. A contradicted or outdated verdict whose quote isn't in the
  * passages is downgraded to unsupported (a contradiction needs evidence the lesson can be fixed against).
  */
 export function issuesFromFindings(
@@ -77,7 +90,7 @@ export function issuesFromFindings(
   contentMd: string,
 ): FactCheckIssue[] {
   return findings.flatMap((f): FactCheckIssue[] => {
-    if (f.verdict === "supported" || !claimFoundInLesson(f.claim, contentMd)) return [];
+    if (f.verdict === "supported" || !claimFoundInLesson(f.claim, contentMd) || claimIsDeliberateError(f.claim, contentMd)) return [];
     const evidenced = f.passageSays !== null && quoteFoundInPassages(f.passageSays, f.sourceIndex, sources);
     const problem = f.verdict === "unsupported" || evidenced ? f.verdict : "unsupported";
     return [{ claim: f.claim, problem, suggestion: f.suggestion }];

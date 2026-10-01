@@ -82,17 +82,36 @@ Rules: size the subtopic list to the time budget. A 3-day course should not have
 Rules: each day has the same number of items, in the same order and of the same kind, as the time budget's slots for that day, with lessons before the review item. Each item's `estMinutes` should match its slot; the day total must be within ±10% of `minutesPerDay`. Review items cover earlier days' material (spaced recall); the final day's review item is the course review + final quiz. Order respects prerequisites. Validate in code after generation and retry once with the problems listed; if still off, keep the content and replace each `estMinutes` with its slot's value.
 
 ## 5. Lesson Writer (`lessonWriter.ts`), MODEL_SMART
-**Input:** lesson spec, its minute split from `timeBudget.ts` (`readingMinutes`, `mediaMinutes`, `practiceMinutes`), the course syllabus (for context), sources assigned to this lesson (numbered, with their `grounding` passages), level, topic type
-**Output:**
+**Input:** lesson spec, its minute split from `timeBudget.ts` (`readingMinutes`, `mediaMinutes`, `practiceMinutes` = activities, practice and quiz), the course syllabus (for context), sources assigned to this lesson (numbered, with their `grounding` passages, at most 4,500 words in total), the lesson's curated videos (numbered, with channel and length), level, topic type
+**Output** (task 1.9: an interactive lesson, an ordered list of activity cards):
 ```ts
+type Card = { id: string, part: string, cites: number[] } & (
+  | { type: "reading", title: string, pages: string[] }            // 2–3 pages, ≤ 80 words each; inline [n] citations
+  | { type: "video", video: number, watchFor: string[] }          // one of the lesson's videos; 2–3 notes
+  | { type: "predict", prompt: string, options: string[], answer: number, reveal: string }
+  | { type: "decide", scenario: string, options: { text: string, outcome: string, best: boolean }[] }  // exactly one best
+  | { type: "match", prompt: string, pairs: { left: string, right: string }[] }                       // 3–6 pairs
+  | { type: "order", prompt: string, items: string[], explain: string }                               // items in the right order
+  | { type: "mythFact", items: { statement: string, fact: boolean, why: string }[] }                  // at least one myth
+  | { type: "spotError", prompt: string, segments: string[], errorIndex: number, correction: string, why: string }
+  | { type: "practiceStep", instructions: string, expectedOutcome: string, minutes: number }
+  | { type: "explainBack", prompt: string, keyPoints: string[], modelAnswer: string }                 // exactly 3 key points
+);
 {
-  contentMd: string,       // markdown; cite as [1], [2] matching source numbers
-  keyTerms: { term: string, definition: string }[],
-  practiceTask: { instructions: string, expectedOutcome: string } | null,
-  citedSourceIndexes: number[]
+  activities: Card[],
+  keyTerms: { term: string, definition: string }[]
 }
 ```
-Rules: original wording only (no copied sentences; quotes under 15 words, attributed); match reading level to user level; open with why it matters; end with a 3-bullet recap; length is `readingMinutes` × 150–200 words; add the sensitive-domain disclaimer when flagged.
+Rules:
+- **Teach, then use.** A lesson is a few parts. Each part (cards sharing `part`, kept together) is an optional predict card, then a reading card, then any videos, then at least one activity. Review never replaces teaching. This gives an action at least every ~90 seconds of reading (≤ 3 pages of 80 words between actions).
+- At least 3 different activity types per lesson; at most one `explainBack`, as the last card. Practice steps only when the lesson includes practice, and then at least one.
+- Every card except `video` and `practiceStep` cites at least one source in `cites`; reading pages also cite inline as [n], and every inline number is in the card's `cites`. Answers, outcomes, reveals, "why" fields, corrections and model answers follow the same sourcing rule. Deliberately wrong content (wrong options, myths, the `spotError` mistake) is plausible but clearly wrong by the sources, and the card states the truth.
+- Original wording only (no copied sentences; quotes under 15 words, attributed); match reading level to user level; the first part opens with why it matters.
+- Length: reading pages together are `readingMinutes` × 150–200 words; the prompt gives the number of reading cards and about how many activity cards fill the activity time (about 55 seconds each, after the quiz and practice steps).
+- Each video is placed at most once, and at least one when the lesson has videos. A video longer than the lesson's `mediaMinutes` is shown as "save for later" (decided in code, `videoPlan` in `cards.ts`), so the reading must teach everything.
+- Sensitive-domain disclaimer: the first page of the first reading card, word for word, as a blockquote.
+- Validated in code (a violation sends the draft back once): the card schemas, page lengths, citation numbers in range, answer indexes, the part structure, video numbers, and practice steps matching the lesson.
+- The examiner, the fact-checker, the audit and the course markdown read the cards as one rendered text (`renderCardsText` in `cards.ts`), which marks myths and spot-the-error mistakes as wrong on purpose. Lessons made before task 1.9 (one `contentMd` article) are still read by the evals and the audit.
 
 ## 6. Examiner (`examiner.ts`), MODEL_FAST
 **Input:** lesson content, objectives
@@ -116,9 +135,10 @@ Rules: 3–5 questions per lesson, exactly the number given (one per objective, 
   }[]
 }
 ```
-`claim` is copied word for word from the lesson ("..." skips words). The passage comes before the verdict so the verdict is decided after reading it. In code, `supported` findings and findings whose claim isn't in the lesson (ignoring case, spacing, emphasis, markdown escapes, citation markers, headings and table pipes) are dropped, and the rest become `issues: { claim, problem, suggestion }[]`. A `contradicted`/`outdated` verdict whose `passageSays` isn't found in that passage (ignoring case, spacing, emphasis and curly quotes; `...` splits the quote) is downgraded to `unsupported`.
+`claim` is copied word for word from the lesson ("..." skips words). The passage comes before the verdict so the verdict is decided after reading it. In code, `supported` findings, findings whose claim isn't in the lesson (ignoring case, spacing, emphasis, markdown escapes, citation markers, headings and table pipes) and findings quoted from a myth or a spot-the-error mistake (wrong on purpose) are dropped, and the rest become `issues: { claim, problem, suggestion }[]`. A `contradicted`/`outdated` verdict whose `passageSays` isn't found in that passage (ignoring case, spacing, emphasis and curly quotes; `...` splits the quote) is downgraded to `unsupported`.
 Rules:
 - Check only specific factual claims: numbers, dates, names, quotes, cause-and-effect statements, and instructions a learner will follow. Not framing, style, definitions, common knowledge at the user's level, or worked examples the lesson sets up itself.
+- Card lessons arrive as rendered text with each card's sources in its heading. Check every card, including answers, reveals, scenario outcomes, "why" lines, corrections and model answers; skip content marked as wrong on purpose (myths, the deliberate mistake, the text of options not marked correct or best) and check the line that gives the truth instead.
 - Judge a claim against the passage it cites; the other passages count only when the claim has no citation or its cited passage doesn't cover it. A claim a cited passage supports is `supported` even if another passage, or another part of the same passage, disagrees (sources contain errors).
 - `contradicted` / `outdated`: the passage says otherwise or is newer. `unsupported`: a specific claim no passage covers.
 - `passed` is computed in code, not by the model: the lesson fails if there is any `contradicted` or `outdated` issue, or more than 2 `unsupported` ones.
@@ -142,7 +162,7 @@ Rules: list what the document says the learner must know or do, in its own order
 
 ## Contract changes planned in Phase 1b
 - **Planner / Curriculum (1.7, 1.8):** take `requirements` or `purpose`; every lesson names the requirement, place or task it serves; output a coverage map.
-- **Lesson Writer (1.9):** `contentMd` is replaced by `activities: Card[]`, where a card is one of `reading | video | predict | decide | match | order | mythFact | spotError | practiceStep | explainBack`. A `reading` card is 2–3 pages of at most ~80 words each. A `video` card places one of the lesson's curated videos and adds 2–3 "watch for" prompts that the lesson text supports. Each part teaches (reading, then video) before its activities. Each card carries its citations, and there is an action at least every ~90 seconds of reading. Original-wording, citation and length rules still apply, per card.
+- **Lesson Writer (1.9):** done; see §5.
 - **Examiner (1.10):** also writes the 3-question test-out per lesson and marks which cards each question covers; warm-ups reuse earlier items.
 - **Researcher (1.11):** honours `sourcePreference` when collecting and scoring sources.
-- **Fact-Checker (1.11):** reports a conflict between cited passages as `disagreement` (shown to the learner as a "Sources disagree" note) instead of failing the lesson; scenario outcomes and every card are checked.
+- **Fact-Checker (1.11):** reports a conflict between cited passages as `disagreement` (shown to the learner as a "Sources disagree" note) instead of failing the lesson. (Checking every card, scenario outcomes included, arrived with 1.9.)

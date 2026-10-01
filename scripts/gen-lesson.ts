@@ -5,6 +5,7 @@
 import { readFile } from "node:fs/promises";
 
 import { formatCostUsd, type LlmCallLog } from "@/lib/llm/cost";
+import { lessonTextOf } from "@/lib/pipeline/cards";
 import { research } from "@/lib/pipeline/researcher";
 import { generateLesson, generateSyllabus, type SyllabusResult } from "@/lib/pipeline/runCourse";
 import type { CompletedIntake } from "@/lib/pipeline/schemas";
@@ -55,13 +56,13 @@ async function main() {
   const { spec, slot, content, factCheck } = lesson;
   const rule = "─".repeat(72);
   console.log(`\n${rule}\nDay ${dayNumber} · ${spec.kind === "review" ? "Review" : `Lesson ${lesson.position + 1}`}: ${spec.title}`);
-  console.log(`${slot.estMinutes} min (reading ${slot.readingMinutes}, videos ${slot.mediaMinutes}, practice + quiz ${slot.practiceMinutes})`);
+  console.log(`${slot.estMinutes} min (reading ${slot.readingMinutes}, videos ${slot.mediaMinutes}, activities, practice + quiz ${slot.practiceMinutes})`);
   console.log(`Objectives:\n${spec.objectives.map((o) => `  - ${o}`).join("\n")}\n${rule}\n`);
 
   if (factCheck.unverifiedClaims.length) {
     console.log(`⚠ Some claims could not be verified:\n${factCheck.unverifiedClaims.map((i) => `  - ${i.claim}`).join("\n")}\n`);
   }
-  console.log(content.contentMd);
+  console.log(lessonTextOf(content, lesson.videos));
   console.log(`\nSources`);
   for (const s of lesson.sources) console.log(`  [${s.index}] ${s.title}\n      ${s.url}`);
   if (lesson.videos.length) {
@@ -70,9 +71,6 @@ async function main() {
   }
   console.log(`\nKey terms`);
   for (const t of content.keyTerms) console.log(`  ${t.term}: ${t.definition}`);
-  if (content.practiceTask) {
-    console.log(`\nPractice\n  ${content.practiceTask.instructions}\n  Expected: ${content.practiceTask.expectedOutcome}`);
-  }
   console.log(`\nQuiz`);
   lesson.quiz.questions.forEach((q, i) => {
     console.log(`  ${i + 1}. ${q.prompt}`);

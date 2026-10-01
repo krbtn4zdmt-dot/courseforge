@@ -4,6 +4,7 @@ import { DISCLAIMERS } from "@/lib/disclaimers";
 import { formatCostUsd } from "@/lib/llm/cost";
 import { mapLinesOutsideFences } from "@/lib/markdown";
 
+import { isCardLesson, lessonTextOf, videoPlan } from "./cards";
 import type { CourseResult, GeneratedLesson, LessonOutcome } from "./runCourse";
 
 /** "How black holes work!" -> "how-black-holes-work". Falls back to "course". */
@@ -36,7 +37,7 @@ function renderLesson(lesson: GeneratedLesson): string[] {
   const label = spec.kind === "review" ? "Review" : `Lesson ${lesson.position + 1}`;
   out.push(`### ${label}: ${spec.title}`);
   out.push(
-    `*${slot.estMinutes} min: reading ${slot.readingMinutes}, videos ${slot.mediaMinutes}, practice and quiz ${slot.practiceMinutes}*`,
+    `*${slot.estMinutes} min: reading ${slot.readingMinutes}, videos ${slot.mediaMinutes}, activities, practice and quiz ${slot.practiceMinutes}*`,
   );
   out.push(`**Objectives**\n${spec.objectives.map((o) => `- ${o}`).join("\n")}`);
   if (factCheck.unverifiedClaims.length) {
@@ -45,14 +46,21 @@ function renderLesson(lesson: GeneratedLesson): string[] {
         factCheck.unverifiedClaims.map((i) => `> - ${i.claim}`).join("\n"),
     );
   }
-  out.push(demoteHeadings(content.contentMd.trim(), 2));
+  out.push(demoteHeadings(lessonTextOf(content, lesson.videos).trim(), 2));
   if (lesson.videos.length) {
-    out.push(`#### Videos\n${lesson.videos.map((v) => `- [${v.title}](${v.url}) (${v.excerpt})`).join("\n")}`);
+    const plan = isCardLesson(content) ? videoPlan(content.activities, lesson.videos, slot.mediaMinutes) : new Map();
+    const placed = isCardLesson(content) ? content.activities.flatMap((c) => (c.type === "video" ? [c] : [])) : [];
+    const note = (i: number) => {
+      const card = placed.find((c) => c.video === i + 1);
+      if (!card) return isCardLesson(content) ? " · not placed" : "";
+      return plan.get(card.id)?.fits ? "" : " · save for later (longer than the video budget)";
+    };
+    out.push(`#### Videos\n${lesson.videos.map((v, i) => `- [${v.title}](${v.url}) (${v.excerpt}${note(i)})`).join("\n")}`);
   }
   if (content.keyTerms.length) {
     out.push(`#### Key terms\n${content.keyTerms.map((t) => `- **${t.term}**: ${t.definition}`).join("\n")}`);
   }
-  if (content.practiceTask) {
+  if (!isCardLesson(content) && content.practiceTask) {
     out.push(`#### Practice\n${content.practiceTask.instructions}\n\n*Expected outcome:* ${content.practiceTask.expectedOutcome}`);
   }
   const questions = lesson.quiz.questions.map(

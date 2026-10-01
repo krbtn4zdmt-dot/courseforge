@@ -35,12 +35,12 @@ Rules, applied per day (all rounding is half-up, i.e. `Math.round`, unless it sa
 1. **Review block.** Days 1–2: none. Day 3 onward: `reviewMinutes = round(minutesPerDay × 0.10)` of spaced recall on earlier days. Final day: `reviewMinutes = ceil(minutesPerDay × 0.30)` for review and the final quiz (this replaces the 10%, it doesn't add to it). A 1-day course follows the final-day rule.
 2. **Teaching time.** `teachingMinutes = minutesPerDay − reviewMinutes`.
 3. **Lesson count.** `lessonsPerDay = clamp(ceil(teachingMinutes / 25), 1, 4)`. Split `teachingMinutes` evenly in whole minutes, giving leftover minutes to the earliest lessons. For every input in range, each lesson lands between 10 and 25 minutes; assert this.
-4. **Inside a lesson.** `estMinutes` is the whole lesson: reading, videos, practice and quiz. Split it by topic type:
+4. **Inside a lesson.** `estMinutes` is the whole lesson: reading, videos, activities, practice and quiz. Split it by topic type (task 1.9: interactive lessons spend most of their time on activities, as in the Day 2 prototypes):
 
-| Topic type | Reading | Media | Practice + quiz |
+| Topic type | Reading | Media | Activities, practice + quiz |
 |---|---|---|---|
-| knowledge, hybrid | 55% | 20% | 25% |
-| skill | 45% | 15% | 40% |
+| knowledge, hybrid | 35% | 20% | 45% |
+| skill | 30% | 15% | 55% |
 
 Round each part to whole minutes and give any rounding difference to reading, so the parts always sum to `estMinutes`.
 
@@ -177,9 +177,9 @@ create table lessons (
   est_minutes int not null,
   status text not null default 'pending'
     check (status in ('pending','generating','ready','failed')),
-  content_md text,
+  content_md text,          -- lessons made before task 1.9 only
   key_terms jsonb,
-  practice_task jsonb,
+  practice_task jsonb,       -- before task 1.9; practice is now a practiceStep card
   video_ids text[],
   fact_check jsonb,
   activities jsonb,          -- task 1.9: ordered activity cards, each with its citations
@@ -306,3 +306,4 @@ Enable Row Level Security on all user tables: users can only read/write rows tie
 | 2026-10-01 | Fact-checker findings must quote the lesson: code drops a finding whose `claim` isn't in the lesson text. A claim any cited passage supports is `supported` even when another passage (or the same one) disagrees. The fact-checker eval gains seeded errors (`edit`: one cited fact changed in a clean lesson) | The remaining "bad source" flags were mostly the checker listing a passage's own erroneous sentence (EBSCO's "Darius II", Britannica's "October 31") as if the lesson said it; the writer already hedged or used the majority version. With no real errors left in the hand-labeled set, seeded ones are what measure recall |
 | 2026-10-01 | The plan adopts the differentiators in SPEC.md ("Why CourseForge wins") as Phase 1b (pipeline: uploads, purpose, interactive cards, test-out, source strictness and disagreement flags, micro-lessons), Phase 4 (interactive day player, streaks, catch-up), Phase 5 (coach, spaced repetition, audio, recap texts) and Phase 6 (groups, parent/teacher view). Uploaded PDFs are read by Claude as documents rather than with a PDF parser; text-to-speech and SMS providers are chosen in their own tasks' mini-specs | The product has to beat tutors and general AI chat, not just produce correct courses; building the differentiators into the pipeline first lets the Phase 1 quality review judge them. Reading PDFs with Claude avoids a dependency |
 | 2026-10-01 | The lesson writer's models are settings (`WriterSettings`: `draftTier`, `rewriteTier`, optional `effort`; default Sonnet for both at the default effort), and `gen:course` and `eval:writer` accept `--draft-model`, `--rewrite-model` and `--writer-effort` for A/B runs. A lesson's source text is capped at 4,500 words in total. The examiner writes exactly the number of questions asked for | Cost A/B: Haiku drafts cost ~80% less per call but wrote half-length Excel lessons and 4 real factual errors in 12 history drafts; Sonnet `medium` cut cost per call ~50% but left 5 of 13 Excel lessons under the word range. Neither replaces the default yet. The cap cut writer input 36% in the writer eval (quality not yet measured). The examiner's "at least one per objective" rule made it write more than 5 questions for long reviews, failing validation and paying for a retry |
+| 2026-10-01 | Task 1.9: a lesson is `activities: Card[]` (reading, video, predict, decide, match, order, mythFact, spotError, practiceStep, explainBack) in teach-first parts, validated in code (`schemas.ts`, `cards.ts`). The lesson time split becomes reading ~35% (skills 30%), videos 20% (15%), activities, practice and quiz the rest. The examiner, fact-checker, audit and markdown read one rendered text of the cards; myths and spot-the-error mistakes are marked wrong on purpose there and findings quoting them are dropped in code. Videos longer than the lesson's video minutes are "save for later" (code, not the writer). `pnpm preview:day` writes a local player for one generated day | The prototypes showed teach-first cards are more engaging and less wordy; the old split put 45–55% of every lesson into reading, so cards alone would have raised cost. One rendered text keeps the fact-checker, examiner and evals working on old and new lessons alike |

@@ -19,7 +19,7 @@ const budget = buildTimeBudget({ days: 2, minutesPerDay: 30, topicType: "skill" 
 const syllabus = syllabusFor(budget); // day 1: 2 lessons; day 2 (final): 1 lesson + review
 const draft = validOutputs.lessonWriter as LessonWriterOutput;
 const quiz = validOutputs.examiner as ExaminerOutput;
-const practice = { instructions: "Try it.", expectedOutcome: "It works." };
+const practiceStep = (title: string) => ({ id: "p1", type: "practiceStep" as const, part: draft.activities[3]!.part, cites: [], instructions: `Try it. (${title})`, expectedOutcome: "It works.", minutes: 3 });
 
 const titleOf = (prompt: string) => prompt.match(/^Day \d+: (.+) \((lesson|review)\)$/m)?.[1];
 
@@ -42,8 +42,11 @@ function mockRun(opts: { failTitle?: string; flagTitle?: string; plan?: PlannerO
         await new Promise((r) => setTimeout(r, 5));
         inFlight--;
         if (title === opts.failTitle) throw new Error("writer exploded");
-        const noPractice = o.prompt.includes("practiceTask must be null");
-        return { ...draft, contentMd: `${draft.contentMd}\n\n(${title})`, practiceTask: noPractice ? null : practice };
+        // The title goes into the cards (a practice step, or the last card's model answer) so the fact-check prompt names the lesson.
+        const noPractice = o.prompt.includes("no (no practiceStep cards)");
+        const [last] = draft.activities.slice(-1) as [Extract<LessonWriterOutput["activities"][number], { type: "explainBack" }>];
+        const tagged = { ...last, modelAnswer: `${last.modelAnswer} (${title})` };
+        return { ...draft, activities: [...draft.activities.slice(0, -1), ...(noPractice ? [] : [practiceStep(title ?? "")]), tagged] };
       }
       case "factChecker":
         return opts.flagTitle && o.prompt.includes(`(${opts.flagTitle})`) ? failingCheck : { findings: [] };
@@ -200,16 +203,17 @@ describe("renderCourseMarkdown", () => {
     expect(md.indexOf("## Day 1:")).toBeLessThan(md.indexOf("## Day 2:"));
     expect(md).toContain(`### Lesson 1: ${syllabus.days[0]!.lessons[0]!.title}`);
     expect(md).toContain("### Review: ");
-    expect(md).toContain("*15 min: reading 7, videos 2, practice and quiz 6*");
+    expect(md).toContain("*15 min: reading 5, videos 2, activities, practice and quiz 8*");
     expect(md).toMatch(/#### Sources\n1\. \[.+\]\(https:\/\/.+\)\n2\. \[/);
     expect(md).toContain("<details><summary>Answers</summary>");
-    expect(md).toContain("#### Practice\nTry it.");
+    expect(md).toContain("##### Practice (3 min)\n\nTry it.");
+    expect(md).toContain("##### Myth or fact (sources [1] [2])\n\n- Myth (false on purpose): Alexander grew up in Athens.");
   });
 
   it("nests lesson headings under the lesson and shows notices and failures", () => {
     const md = renderCourseMarkdown(course);
-    expect(md).toContain("#### Why this matters");
-    expect(md).not.toMatch(/^## Why this matters/m);
+    expect(md).toContain("#### A prince of Macedon\n\n##### Predict (sources [1])");
+    expect(md).not.toMatch(/^## A prince of Macedon/m);
     expect(md).toContain("> ⚠️ **Some claims could not be verified.**");
     expect(md).toContain("> - Alexander was born in Pella in 356 BCE");
     expect(md).toContain("> ❌ This lesson failed to generate: writer exploded");

@@ -67,12 +67,13 @@ These build the differentiators in docs/SPEC.md ("Why CourseForge wins") into th
 **Prompt:**
 > Do task 1.8. Add purpose-driven courses: intake field, planner and curriculum rules, and the coverage report from 1.7 applied to the purpose. Show me the plan first.
 
-### [ ] 1.9 Interactive lesson format
+### [~] 1.9 Interactive lesson format
 **Acceptance:** each lesson is an ordered list of activity cards instead of one article:
 - **Card types:** reading passage (2–3 pages of ≤ 80 words each), video (a curated clip with a "watch for" note), predict-then-reveal, decide (a scenario with outcomes), match, order, myth-or-fact, spot-the-error, practice step, explain-it-back.
 - **Teach, then use:** each part of the lesson starts with a reading passage (and a video where the course has one) before its activities; review never replaces teaching. The video's minutes count against the lesson's media minutes, and an over-budget video is offered as "save for later".
 - **Pacing:** an action at least every ~90 seconds of reading.
-- **Rules unchanged:** citations per card, original wording, the reading/practice minute split.
+- **Rules unchanged:** citations per card, original wording.
+- **Time split:** reading is about 35% of a lesson (30% for skills), videos 20% (15%), and activities, practice and quiz the rest, as in the Day 2 prototypes (decided 2026-10-01, to cut wordiness and cost).
 
 The fact-checker covers every card, including scenario outcomes. `audit:course` checks the reading time between actions and citations per card. `eval:writer` and `eval:factcheck` show no regression. The cost per 7-day course is no higher than the prose format. The Alexander and Excel courses regenerate, and one day of each is playable in a local preview built on the Day 2 prototype.
 **Prompt:**

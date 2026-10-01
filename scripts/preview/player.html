@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CourseForge day preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Local preview of one generated day (pnpm preview:day, task 1.9), built on the Day 2 prototypes:
+   one card at a time on the stage, the day's lessons, time box and sources on the side. */
+:root {
+  --bg: #f2f3f6; --surface: #fdfdfe; --ink: #161a24; --muted: #5d6475; --line: #d9dce5;
+  --accent: #3446a8; --accent-soft: #e5e8f7; --gold: #a06d12; --gold-soft: #f6ecd6;
+  --ok: #2a7146; --ok-soft: #e0f0e6; --bad: #a3392b; --bad-soft: #f8e2de;
+  --font-ui: "Figtree", "Segoe UI", system-ui, sans-serif;
+  --font-read: "Source Serif 4", Georgia, "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11131a; --surface: #191c25; --ink: #e9ebf2; --muted: #a2a8b8; --line: #2d3240;
+    --accent: #9eacf5; --accent-soft: #232946; --gold: #e0b45e; --gold-soft: #33291a;
+    --ok: #7fcb97; --ok-soft: #173020; --bad: #f09c8d; --bad-soft: #3b1f1b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11131a; --surface: #191c25; --ink: #e9ebf2; --muted: #a2a8b8; --line: #2d3240;
+  --accent: #9eacf5; --accent-soft: #232946; --gold: #e0b45e; --gold-soft: #33291a;
+  --ok: #7fcb97; --ok-soft: #173020; --bad: #f09c8d; --bad-soft: #3b1f1b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 16px; line-height: 1.55; }
+button { font: inherit; color: inherit; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 18px 16px 80px; }
+
+.top { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
+.course { display: grid; gap: 2px; min-width: 0; }
+.course small { font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.course strong { font-size: clamp(1.2rem, 3vw, 1.55rem); font-weight: 700; }
+.hud { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-weight: 600; font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+.pill.points { color: var(--gold); border-color: var(--gold); }
+.pill.points.bump { animation: bump 0.45s ease; }
+@keyframes bump { 40% { transform: scale(1.15); } }
+.linkbtn { border: 0; background: none; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 0.84rem; padding: 4px; }
+
+.progress { margin: 14px 0 18px; display: grid; gap: 6px; }
+.track { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.track i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 4px; transition: width 0.4s ease; }
+.progress-meta { display: flex; justify-content: space-between; gap: 10px; font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; align-items: start; }
+@media (max-width: 880px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 26px clamp(18px, 4vw, 40px) 28px; min-height: 420px; display: grid; gap: 18px; align-content: start; min-width: 0; }
+.stage > * { min-width: 0; }
+.kicker { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent); }
+.kicker .mins { color: var(--muted); font-weight: 600; letter-spacing: 0.04em; }
+h1.step-title { font-weight: 700; font-size: clamp(1.35rem, 3.2vw, 1.85rem); line-height: 1.2; margin: 0; text-wrap: balance; }
+.read { font-family: var(--font-read); font-size: 1.06rem; line-height: 1.65; max-width: 62ch; }
+.read p, .read ul, .read ol, .read table, .read blockquote { margin: 0 0 0.75em; }
+.read ul, .read ol { padding-left: 1.2em; }
+.read li { margin: 0.25em 0; }
+.read blockquote { border-left: 3px solid var(--gold); padding-left: 12px; color: var(--muted); }
+.read table { border-collapse: collapse; font-size: 0.95rem; display: block; max-width: 100%; overflow-x: auto; }
+.read th, .read td { border: 1px solid var(--line); padding: 5px 10px; text-align: left; }
+.read code, .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, monospace; font-size: 0.92em; }
+.read.page { min-height: 9em; }
+.read.note { font-size: 0.92rem; color: var(--muted); margin: 0; }
+sup.cite { font-family: var(--font-ui); font-size: 0.7em; color: var(--accent); font-weight: 700; }
+.cites { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.78rem; color: var(--muted); }
+.cites a { text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; color: var(--muted); }
+.cites a:hover { border-color: var(--accent); color: var(--accent); }
+.banner { border-radius: 12px; padding: 10px 14px; font-size: 0.9rem; background: var(--gold-soft); }
+
+.choices { display: grid; gap: 8px; }
+.choice { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; text-align: left; border: 1.5px solid var(--line); background: var(--surface); border-radius: 12px; padding: 12px 14px; cursor: pointer; font-size: 1rem; line-height: 1.45; transition: border-color 0.15s, transform 0.15s; }
+.choice:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
+.choice:disabled { cursor: default; }
+.choice .key { width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; color: var(--muted); }
+.choice.picked { border-color: var(--accent); background: var(--accent-soft); }
+.choice.right { border-color: var(--ok); background: var(--ok-soft); }
+.choice.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.sure { display: grid; gap: 8px; }
+.sure p { margin: 0; font-weight: 600; }
+.sure-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.sure-row button { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 14px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+.sure-row button:hover { border-color: var(--gold); color: var(--gold); }
+
+.feedback { border-radius: 12px; padding: 12px 16px; display: grid; gap: 4px; font-size: 0.97rem; }
+.feedback.good { background: var(--ok-soft); }
+.feedback.miss { background: var(--bad-soft); }
+.feedback.info { background: var(--accent-soft); }
+.feedback .pts { font-size: 0.82rem; font-weight: 700; color: var(--gold); }
+
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 10px 20px; cursor: pointer; font-weight: 700; font-size: 0.95rem; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.pager-label { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.video-tile { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 14px; align-items: center; text-decoration: none; color: var(--ink); border: 1.5px solid var(--line); border-radius: 14px; padding: 14px; background: var(--accent-soft); }
+.video-tile:hover { border-color: var(--accent); }
+.video-tile .play { width: 56px; height: 56px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; }
+.video-tile .play::after { content: ""; border-left: 16px solid var(--surface); border-top: 10px solid transparent; border-bottom: 10px solid transparent; margin-left: 4px; }
+.video-meta { display: grid; gap: 2px; min-width: 0; }
+.video-meta strong { font-size: 1.02rem; line-height: 1.3; }
+.video-meta span { font-size: 0.82rem; color: var(--muted); }
+
+.match { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+@media (max-width: 520px) { .match { grid-template-columns: minmax(0, 1fr); } }
+.match-col { display: grid; gap: 8px; align-content: start; }
+.tile { text-align: left; border: 1.5px solid var(--line); background: var(--surface); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 0.93rem; line-height: 1.35; }
+.tile.left { font-weight: 700; }
+.tile.sel { border-color: var(--accent); background: var(--accent-soft); }
+.tile.done { border-color: var(--ok); background: var(--ok-soft); cursor: default; }
+.tile.shake { animation: shake 0.35s ease; border-color: var(--bad); }
+@keyframes shake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+.statement { font-family: var(--font-read); font-size: 1.15rem; line-height: 1.45; padding: 18px; border: 1.5px dashed var(--line); border-radius: 12px; }
+.mf-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mf-buttons button { border: 1.5px solid var(--line); background: var(--surface); border-radius: 12px; padding: 14px; cursor: pointer; font-size: 1.05rem; font-weight: 700; }
+.mf-buttons button:hover:not(:disabled) { border-color: var(--accent); }
+.dots { display: flex; gap: 6px; }
+.dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.dots i.ok { background: var(--ok); } .dots i.no { background: var(--bad); } .dots i.now { background: var(--accent); }
+
+.order-picked { padding: 0; margin: 0; display: grid; gap: 8px; }
+.order-picked li { list-style: none; }
+.slot { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: center; border: 1.5px solid var(--line); border-radius: 10px; padding: 9px 12px; background: var(--surface); }
+.slot .n { font-weight: 700; color: var(--accent); }
+.slot.ok { border-color: var(--ok); background: var(--ok-soft); }
+.slot.no { border-color: var(--bad); background: var(--bad-soft); }
+.pool { display: grid; gap: 8px; }
+
+.scenario { background: var(--accent-soft); border-radius: 12px; padding: 14px 16px; font-family: var(--font-read); font-size: 1.04rem; line-height: 1.6; max-width: 64ch; }
+.outcomes { display: grid; gap: 8px; }
+.outcomes details { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; font-size: 0.93rem; }
+.outcomes summary { cursor: pointer; font-weight: 600; }
+
+textarea { width: 100%; min-height: 110px; border: 1.5px solid var(--line); border-radius: 12px; padding: 12px; background: var(--surface); color: var(--ink); font-family: var(--font-read); font-size: 1rem; line-height: 1.5; resize: vertical; }
+textarea:focus { border-color: var(--accent); outline: none; }
+.check-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.check-list label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
+
+.side { display: grid; gap: 14px; position: sticky; top: 12px; }
+@media (max-width: 880px) { .side { position: static; } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 10px; }
+.panel h2 { margin: 0; font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 700; display: flex; justify-content: space-between; gap: 8px; }
+.lessons { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.lessons li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; font-size: 0.88rem; line-height: 1.35; color: var(--muted); }
+.lessons li::before { content: ""; width: 14px; height: 14px; margin-top: 2px; border-radius: 50%; border: 1.5px solid var(--line); }
+.lessons li.now { color: var(--ink); font-weight: 600; }
+.lessons li.now::before { border-color: var(--accent); background: var(--accent-soft); }
+.lessons li.done::before { background: var(--ok); border-color: var(--ok); }
+.timebox .bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--line); }
+.timebox .bar i { display: block; height: 100%; background: var(--accent); width: 0; transition: width 0.4s ease; }
+.timebox .legend { font-size: 0.8rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--surface); padding: 10px 18px; border-radius: 999px; font-weight: 700; font-size: 0.92rem; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; max-width: calc(100% - 32px); text-align: center; z-index: 30; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)); gap: 10px; }
+.stat { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 2px; }
+.stat b { font-size: 1.5rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.8rem; color: var(--muted); }
+.tomorrow { border: 1.5px solid var(--gold); background: var(--gold-soft); border-radius: 12px; padding: 14px 16px; display: grid; gap: 4px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="course"><small id="course-line"></small><strong id="day-title"></strong></div>
+    <div class="hud">
+      <span class="pill" id="combo">Combo 0</span>
+      <span class="pill points" id="points">0 points</span>
+      <button class="linkbtn" id="restart" type="button">Restart day</button>
+    </div>
+  </header>
+  <div class="progress">
+    <div class="track" aria-hidden="true"><i id="prog"></i></div>
+    <div class="progress-meta"><span id="prog-label"></span><span id="time-label"></span></div>
+  </div>
+  <div class="grid">
+    <main class="stage" id="stage" aria-live="polite"></main>
+    <aside class="side">
+      <section class="panel"><h2><span>Today</span><span id="lessons-n"></span></h2><ul class="lessons" id="lessons"></ul></section>
+      <section class="panel timebox"><h2><span>Time box</span><span id="time-n"></span></h2><div class="bar"><i id="time-bar"></i></div><div class="legend" id="time-legend"></div></section>
+    </aside>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+(function () {
+  "use strict";
+  var DAY = /*__DAY_DATA__*/null;
+  var KEY = "cf-preview-" + (DAY ? DAY.courseTitle + "-day" + DAY.dayNumber : "none");
+  var QUIZ_SECONDS = 30;
+
+  // ---------- Steps: per lesson an intro, its cards, its quiz; then the summary ----------
+  var steps = [];
+  DAY.lessons.forEach(function (lesson, li) {
+    steps.push({ kind: "intro", li: li, seconds: 0 });
+    lesson.cards.forEach(function (c) { steps.push({ kind: "card", li: li, card: c.card, seconds: c.seconds }); });
+    lesson.quiz.forEach(function (q, qi) { steps.push({ kind: "quiz", li: li, q: q, qi: qi, seconds: QUIZ_SECONDS }); });
+  });
+  steps.push({ kind: "summary", seconds: 0 });
+  var plannedSeconds = steps.reduce(function (n, s) { return n + s.seconds; }, 0);
+
+  function fresh() { return { i: 0, points: 0, combo: 0, right: 0, answered: 0, usedSec: 0, later: [] }; }
+  var S = load() || fresh();
+  function load() { try { var raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; } }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable: progress lasts this visit */ } }
+
+  // ---------- DOM helpers ----------
+  var stage = document.getElementById("stage");
+  function el(tag, attrs, kids) {
+    var n = document.createElement(tag);
+    if (attrs) for (var k in attrs) {
+      var v = attrs[k];
+      if (v === null || v === undefined || v === false) continue;
+      if (k === "text") n.textContent = v; else if (k === "html") n.innerHTML = v; else if (k.slice(0, 2) === "on") n.addEventListener(k.slice(2), v); else n.setAttribute(k, v === true ? "" : v);
+    }
+    (kids || []).forEach(function (c) { if (c) n.appendChild(typeof c === "string" ? document.createTextNode(c) : c); });
+    return n;
+  }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  // Code spans are left alone, and *emphasis* needs a space or bracket before it, so "=B2*C2" stays a formula.
+  function inline(s) {
+    return String(s).split(/(`[^`]+`)/).map(function (part, i) {
+      if (i % 2) return "<code>" + esc(part.slice(1, -1)) + "</code>";
+      return esc(part)
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/(^|[\s(])\*(\S(?:[^*]*\S)?)\*(?=[\s).,;:!?]|$)/g, "$1<em>$2</em>")
+        .replace(/\[([^\]]+)\]\((?:[^()]|\([^()]*\))*\)/g, "$1")
+        .replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g, '<sup class="cite">[$1]</sup>');
+    }).join("");
+  }
+  // A small, safe markdown subset: paragraphs, lists, blockquotes, tables, emphasis, code, citations.
+  function md(text) {
+    return String(text).trim().split(/\n\s*\n/).map(function (block) {
+      var lines = block.split("\n");
+      if (lines.every(function (l) { return /^\s*[-*] /.test(l); })) return "<ul>" + lines.map(function (l) { return "<li>" + inline(l.replace(/^\s*[-*] /, "")) + "</li>"; }).join("") + "</ul>";
+      if (lines.every(function (l) { return /^\s*\d+[.)] /.test(l); })) return "<ol>" + lines.map(function (l) { return "<li>" + inline(l.replace(/^\s*\d+[.)] /, "")) + "</li>"; }).join("") + "</ol>";
+      if (lines.every(function (l) { return /^\s*>/.test(l); })) return "<blockquote>" + inline(lines.map(function (l) { return l.replace(/^\s*>\s?/, ""); }).join(" ")) + "</blockquote>";
+      if (lines.length > 1 && lines.every(function (l) { return /^\s*\|.*\|\s*$/.test(l); })) {
+        var rows = lines.filter(function (l) { return !/^\s*\|[\s:|-]+\|\s*$/.test(l); }).map(function (l) { return l.trim().slice(1, -1).split("|"); });
+        return "<table>" + rows.map(function (r, ri) { return "<tr>" + r.map(function (c) { return (ri ? "<td>" : "<th>") + inline(c.trim()) + (ri ? "</td>" : "</th>"); }).join("") + "</tr>"; }).join("") + "</table>";
+      }
+      return "<p>" + inline(lines.join(" ")) + "</p>";
+    }).join("");
+  }
+  function shuffle(list, seed) {
+    var a = list.slice(), s = seed || 7;
+    for (var i = a.length - 1; i > 0; i--) { s = (s * 9301 + 49297) % 233280; var j = Math.floor((s / 233280) * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    if (a.length > 1 && a.every(function (x, k) { return x === list[k]; })) a.push(a.shift());
+    return a;
+  }
+  function minutes(sec) { return Math.max(0, Math.round(sec / 60)); }
+  var toastTimer;
+  function toast(msg) { var t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.classList.remove("show"); }, 1800); }
+
+  // ---------- Scoring and moving on ----------
+  function award(points, right) {
+    S.points += points;
+    if (right === true) { S.right++; S.combo++; if (S.combo === 3 || S.combo === 5 || S.combo === 8) toast("Combo " + S.combo + "!"); }
+    if (right === false) S.combo = 0;
+    if (right !== null) S.answered++;
+    var p = document.getElementById("points"); p.classList.remove("bump"); void p.offsetWidth; p.classList.add("bump");
+    hud(); save();
+  }
+  function next(countedSec) {
+    var step = steps[S.i];
+    S.usedSec += countedSec === undefined ? step.seconds : countedSec;
+    S.i = Math.min(S.i + 1, steps.length - 1);
+    save(); render(); window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function continueBtn(label, sec) { return el("button", { class: "btn primary", type: "button", text: label || "Continue", onclick: function () { next(sec); } }); }
+  function feedback(kind, title, text, pts) {
+    return el("div", { class: "feedback " + kind }, [el("strong", { text: title }), text ? el("span", { html: inline(text) }) : null, pts !== undefined ? el("span", { class: "pts", text: (pts >= 0 ? "+" : "") + pts + " point" + (Math.abs(pts) === 1 ? "" : "s") }) : null]);
+  }
+  function cites(lesson, nums) {
+    if (!nums || !nums.length) return null;
+    var links = nums.map(function (n) {
+      var s = lesson.sources.filter(function (x) { return x.index === n; })[0];
+      return s ? el("a", { href: s.url, target: "_blank", rel: "noopener", text: "[" + n + "] " + s.title }) : null;
+    });
+    return el("div", { class: "cites" }, [el("span", { text: "Sources:" })].concat(links));
+  }
+  function head(step, title) {
+    var lesson = DAY.lessons[step.li];
+    var part = step.card ? step.card.part : step.kind === "quiz" ? "Check yourself" : lesson.kind === "review" ? "Review" : "Lesson " + (step.li + 1);
+    var mins = step.seconds ? "≈ " + Math.max(1, Math.round(step.seconds / 60)) + " min" : null;
+    var nodes = [el("div", { class: "kicker" }, [el("span", { text: part }), mins ? el("span", { class: "mins", text: mins }) : null])];
+    if (title) nodes.push(el("h1", { class: "step-title", text: title }));
+    return nodes;
+  }
+  function put(nodes) { nodes.forEach(function (n) { if (n) stage.appendChild(n); }); }
+
+  // ---------- HUD and side panel ----------
+  function hud() {
+    document.getElementById("points").textContent = S.points + " points";
+    document.getElementById("combo").textContent = "Combo " + S.combo;
+    document.getElementById("prog").style.width = Math.round((S.i / (steps.length - 1)) * 100) + "%";
+    var step = steps[S.i];
+    document.getElementById("prog-label").textContent = step.kind === "summary" ? "Day complete" : "Step " + (S.i + 1) + " of " + (steps.length - 1) + " · " + DAY.lessons[step.li].title;
+    document.getElementById("time-label").textContent = "≈ " + minutes(S.usedSec) + " of " + DAY.minutesPerDay + " min";
+    document.getElementById("time-bar").style.width = Math.min(100, Math.round((S.usedSec / (DAY.minutesPerDay * 60)) * 100)) + "%";
+    document.getElementById("time-n").textContent = minutes(S.usedSec) + "/" + DAY.minutesPerDay + " min";
+    document.getElementById("time-legend").textContent = "Planned: about " + minutes(plannedSeconds) + " min, not counting videos saved for later.";
+    var list = document.getElementById("lessons"); list.textContent = "";
+    var current = step.kind === "summary" ? DAY.lessons.length : step.li;
+    DAY.lessons.forEach(function (l, i) { list.appendChild(el("li", { class: i < current ? "done" : i === current ? "now" : "", text: l.title + " · " + l.estMinutes + " min" })); });
+    document.getElementById("lessons-n").textContent = Math.min(current, DAY.lessons.length) + "/" + DAY.lessons.length;
+  }
+
+  // ---------- Renderers ----------
+  function render() {
+    stage.textContent = "";
+    var step = steps[S.i];
+    hud();
+    if (step.kind === "intro") return renderIntro(step);
+    if (step.kind === "quiz") return renderQuiz(step);
+    if (step.kind === "summary") return renderSummary();
+    var r = RENDER[step.card.type];
+    if (!r) { put(head(step, "Unknown card: " + step.card.type)); stage.appendChild(el("div", { class: "actions" }, [continueBtn()])); return; }
+    r(step, step.card, DAY.lessons[step.li]);
+  }
+
+  function renderIntro(step) {
+    var lesson = DAY.lessons[step.li];
+    put(head(step, lesson.title));
+    if (step.li === 0 && DAY.disclaimer) stage.appendChild(el("div", { class: "banner", text: DAY.disclaimer }));
+    stage.appendChild(el("div", { class: "read" }, [el("p", { text: "By the end you'll be able to:" }), el("ul", null, lesson.objectives.map(function (o) { return el("li", { text: o }); }))]));
+    if (lesson.unverifiedClaims.length) stage.appendChild(feedback("miss", "Some claims could not be verified.", "Double-check these: " + lesson.unverifiedClaims.join("; ")));
+    stage.appendChild(el("p", { class: "read note", text: lesson.estMinutes + " minutes · " + lesson.cards.length + " cards and a " + lesson.quiz.length + "-question check." }));
+    stage.appendChild(el("div", { class: "actions" }, [continueBtn(step.li === 0 ? "Start" : "Next lesson")]));
+  }
+
+  var RENDER = {
+    reading: function (step, card, lesson) {
+      var page = 0, holder = el("div"), dots = el("div", { class: "dots", "aria-hidden": "true" });
+      put(head(step, card.title));
+      stage.appendChild(holder);
+      function draw() {
+        holder.textContent = "";
+        dots.textContent = "";
+        card.pages.forEach(function (_, k) { dots.appendChild(el("i", { class: k < page ? "ok" : k === page ? "now" : "" })); });
+        holder.appendChild(el("div", { class: "read page", html: md(card.pages[page]) }));
+        holder.appendChild(el("div", { class: "actions" }, [dots, el("span", { class: "pager-label", text: "Page " + (page + 1) + " of " + card.pages.length })]));
+        var last = page === card.pages.length - 1;
+        if (last) { var c = cites(lesson, card.cites); if (c) holder.appendChild(c); }
+        holder.appendChild(el("div", { class: "actions" }, [
+          page > 0 ? el("button", { class: "btn", type: "button", text: "Back", onclick: function () { page--; draw(); } }) : null,
+          last ? continueBtn() : el("button", { class: "btn primary", type: "button", text: "Next page", onclick: function () { page++; draw(); } }),
+        ]));
+      }
+      draw();
+    },
+
+    video: function (step, card, lesson) {
+      var v = lesson.videos[card.video - 1] || { title: "Video " + card.video, url: "#", excerpt: "", fits: false, minutes: null };
+      put(head(step, "Watch: " + v.title));
+      stage.appendChild(el("a", { class: "video-tile", href: v.url, target: "_blank", rel: "noopener" }, [el("span", { class: "play", "aria-hidden": "true" }), el("span", { class: "video-meta" }, [el("strong", { text: v.title }), el("span", { text: v.excerpt + " · opens on YouTube" })])]));
+      stage.appendChild(el("div", { class: "read" }, [el("p", { text: "Watch for:" }), el("ul", null, card.watchFor.map(function (w) { return el("li", { html: inline(w) }); }))]));
+      if (!v.fits) stage.appendChild(el("p", { class: "read note", text: "This clip is longer than today's video time" + (v.minutes ? " (" + v.minutes + " min)" : "") + ". Save it for later, or watch now if you have time; everything you need is in the reading." }));
+      function later() { if (S.later.indexOf(v.url) < 0) S.later.push(v.url); next(0); }
+      var watched = el("button", { class: v.fits ? "btn primary" : "btn", type: "button", text: "I watched it", onclick: function () { next(v.minutes ? v.minutes * 60 : step.seconds); } });
+      var save = el("button", { class: v.fits ? "btn" : "btn primary", type: "button", text: "Save for later", onclick: later });
+      stage.appendChild(el("div", { class: "actions" }, v.fits ? [watched, save] : [save, watched]));
+    },
+
+    predict: function (step, card, lesson) {
+      put(head(step, card.prompt));
+      stage.appendChild(feedback("info", "Guess first. No penalty: guessing before you learn makes it stick."));
+      var box = el("div", { class: "choices" }), result = el("div", { style: "display:grid;gap:10px" }), buttons = [];
+      card.options.forEach(function (o, i) {
+        var b = el("button", { class: "choice", type: "button", onclick: function () {
+          buttons.forEach(function (x, k) { x.disabled = true; if (k === card.answer) x.classList.add("right"); });
+          var right = i === card.answer;
+          if (!right) b.classList.add("wrong");
+          var pts = right ? 2 : 1;
+          award(pts, null);
+          result.appendChild(feedback(right ? "good" : "info", right ? "Good instinct." : "Not quite, and that's the point.", card.reveal, pts));
+          var c = cites(lesson, card.cites); if (c) result.appendChild(c);
+          result.appendChild(el("div", { class: "actions" }, [continueBtn()]));
+        } }, [el("span", { class: "key", text: "ABCD"[i] }), el("span", { html: inline(o) })]);
+        buttons.push(b); box.appendChild(b);
+      });
+      stage.appendChild(box); stage.appendChild(result);
+    },
+
+    decide: function (step, card, lesson) {
+      put(head(step, "What would you do?"));
+      stage.appendChild(el("div", { class: "scenario", html: md(card.scenario) }));
+      var box = el("div", { class: "choices" }), result = el("div", { style: "display:grid;gap:10px" }), buttons = [];
+      card.options.forEach(function (o, i) {
+        var b = el("button", { class: "choice", type: "button", onclick: function () {
+          buttons.forEach(function (x, k) { x.disabled = true; if (card.options[k].best) x.classList.add("right"); });
+          if (!o.best) b.classList.add("wrong");
+          var pts = o.best ? 3 : 1;
+          award(pts, o.best);
+          result.appendChild(feedback(o.best ? "good" : "miss", o.best ? "Best call." : "That's one way it could go.", o.outcome, pts));
+          var others = card.options.filter(function (_, k) { return k !== i; });
+          result.appendChild(el("div", { class: "outcomes" }, others.map(function (x) { return el("details", null, [el("summary", { text: (x.best ? "Best choice: " : "If you chose: ") + x.text }), el("div", { html: inline(x.outcome) })]); })));
+          var c = cites(lesson, card.cites); if (c) result.appendChild(c);
+          result.appendChild(el("div", { class: "actions" }, [continueBtn()]));
+        } }, [el("span", { class: "key", text: "ABCD"[i] }), el("span", { html: inline(o.text) })]);
+        buttons.push(b); box.appendChild(b);
+      });
+      stage.appendChild(box); stage.appendChild(result);
+    },
+
+    match: function (step, card, lesson) {
+      put(head(step, card.prompt));
+      stage.appendChild(el("p", { class: "read note", text: "Tap an item on the left, then its match." }));
+      var left = el("div", { class: "match-col" }), right = el("div", { class: "match-col" }), status = el("div", { style: "display:grid;gap:10px" });
+      var sel = null, done = 0, misses = 0;
+      var lefts = card.pairs.map(function (p, i) {
+        var b = el("button", { class: "tile left", type: "button", html: inline(p.left), onclick: function () {
+          if (b.classList.contains("done")) return;
+          lefts.forEach(function (x) { x.classList.remove("sel"); }); b.classList.add("sel"); sel = i;
+        } });
+        left.appendChild(b); return b;
+      });
+      shuffle(card.pairs.map(function (p, i) { return i; }), card.pairs.length * 13).forEach(function (i) {
+        var b = el("button", { class: "tile", type: "button", html: inline(card.pairs[i].right), onclick: function () {
+          if (sel === null || b.classList.contains("done")) return;
+          if (sel === i) {
+            b.classList.add("done"); lefts[i].classList.remove("sel"); lefts[i].classList.add("done"); sel = null; done++;
+            if (done === card.pairs.length) {
+              var pts = misses <= 1 ? 3 : 1; award(pts, misses <= 1);
+              status.appendChild(feedback("good", misses === 0 ? "Flawless." : "All matched.", null, pts));
+              var c = cites(lesson, card.cites); if (c) status.appendChild(c);
+              status.appendChild(el("div", { class: "actions" }, [continueBtn()]));
+            }
+          } else { misses++; b.classList.add("shake"); setTimeout(function () { b.classList.remove("shake"); }, 400); }
+        } });
+        right.appendChild(b);
+      });
+      stage.appendChild(el("div", { class: "match" }, [left, right])); stage.appendChild(status);
+    },
+
+    order: function (step, card, lesson) {
+      put(head(step, card.prompt));
+      stage.appendChild(el("p", { class: "read note", text: "Tap them in the right order." }));
+      var order = shuffle(card.items.map(function (_, i) { return i; }), card.items.length * 7), picked = [];
+      var list = el("ol", { class: "order-picked" }), pool = el("div", { class: "pool" }), result = el("div", { style: "display:grid;gap:10px" });
+      var undo = el("button", { class: "btn", type: "button", text: "Undo", onclick: function () { picked.pop(); draw(); } });
+      var check = el("button", { class: "btn primary", type: "button", text: "Check order", onclick: function () {
+        var right = picked.every(function (v, k) { return v === k; });
+        list.textContent = "";
+        card.items.forEach(function (t, k) { list.appendChild(el("li", null, [el("div", { class: "slot " + (picked[k] === k ? "ok" : "no") }, [el("span", { class: "n", text: String(k + 1) }), el("span", { html: inline(t) })])])); });
+        undo.disabled = true; check.disabled = true;
+        var pts = right ? 3 : 1; award(pts, right);
+        result.appendChild(feedback(right ? "good" : "miss", right ? "Spot on." : "Here's the right order.", card.explain, pts));
+        var c = cites(lesson, card.cites); if (c) result.appendChild(c);
+        result.appendChild(el("div", { class: "actions" }, [continueBtn()]));
+      } });
+      function draw() {
+        list.textContent = ""; pool.textContent = "";
+        picked.forEach(function (i, k) { list.appendChild(el("li", null, [el("div", { class: "slot" }, [el("span", { class: "n", text: String(k + 1) }), el("span", { html: inline(card.items[i]) })])])); });
+        order.forEach(function (i) { if (picked.indexOf(i) < 0) pool.appendChild(el("button", { class: "tile", type: "button", html: inline(card.items[i]), onclick: function () { picked.push(i); draw(); } })); });
+        undo.disabled = !picked.length; check.disabled = picked.length !== card.items.length;
+      }
+      stage.appendChild(list); stage.appendChild(pool); stage.appendChild(el("div", { class: "actions" }, [undo, check])); stage.appendChild(result);
+      draw();
+    },
+
+    mythFact: function (step, card, lesson) {
+      put(head(step, "Myth or fact?"));
+      var k = 0, marks = [], holder = el("div", { style: "display:grid;gap:14px" });
+      stage.appendChild(holder);
+      function show() {
+        holder.textContent = "";
+        var dots = el("div", { class: "dots", "aria-hidden": "true" });
+        card.items.forEach(function (_, i) { dots.appendChild(el("i", { class: i < k ? (marks[i] ? "ok" : "no") : i === k ? "now" : "" })); });
+        var item = card.items[k], fb = el("div", { style: "display:grid;gap:10px" });
+        var bm = el("button", { type: "button", text: "Myth", onclick: function () { answer(false); } });
+        var bf = el("button", { type: "button", text: "Fact", onclick: function () { answer(true); } });
+        function answer(sayFact) {
+          bm.disabled = bf.disabled = true;
+          var right = sayFact === item.fact; marks[k] = right;
+          award(right ? 2 : 0, right);
+          fb.appendChild(feedback(right ? "good" : "miss", (item.fact ? "Fact. " : "Myth. ") + (right ? "Right." : "Not this time."), item.why, right ? 2 : 0));
+          var last = k === card.items.length - 1;
+          if (last) { var c = cites(lesson, card.cites); if (c) fb.appendChild(c); }
+          fb.appendChild(el("div", { class: "actions" }, [last ? continueBtn() : el("button", { class: "btn primary", type: "button", text: "Next statement", onclick: function () { k++; show(); } })]));
+        }
+        holder.appendChild(dots);
+        holder.appendChild(el("div", { class: "statement", html: inline(item.statement) }));
+        holder.appendChild(el("div", { class: "mf-buttons" }, [bm, bf]));
+        holder.appendChild(fb);
+      }
+      show();
+    },
+
+    spotError: function (step, card, lesson) {
+      put(head(step, card.prompt));
+      stage.appendChild(el("p", { class: "read note", text: "One of these has a mistake. Tap it." }));
+      var box = el("div", { class: "choices" }), result = el("div", { style: "display:grid;gap:10px" }), buttons = [];
+      card.segments.forEach(function (s, i) {
+        var b = el("button", { class: "choice", type: "button", onclick: function () {
+          buttons.forEach(function (x, k) { x.disabled = true; if (k === card.errorIndex) x.classList.add("wrong"); });
+          var right = i === card.errorIndex;
+          if (!right) b.classList.add("picked");
+          var pts = right ? 3 : 0; award(pts, right);
+          result.appendChild(feedback(right ? "good" : "miss", right ? "Caught it." : "The mistake was a different one.", "Correction: " + card.correction + " " + card.why, pts));
+          var c = cites(lesson, card.cites); if (c) result.appendChild(c);
+          result.appendChild(el("div", { class: "actions" }, [continueBtn()]));
+        } }, [el("span", { class: "key", text: String(i + 1) }), el("span", { html: inline(s) })]);
+        buttons.push(b); box.appendChild(b);
+      });
+      stage.appendChild(box); stage.appendChild(result);
+    },
+
+    practiceStep: function (step, card, lesson) {
+      put(head(step, "Try it yourself"));
+      stage.appendChild(el("div", { class: "read", html: md(card.instructions) }));
+      stage.appendChild(el("div", { class: "outcomes" }, [el("details", null, [el("summary", { text: "Check your result" }), el("div", { class: "read", html: md(card.expectedOutcome) })])]));
+      var c = cites(lesson, card.cites); if (c) stage.appendChild(c);
+      stage.appendChild(el("div", { class: "actions" }, [
+        el("button", { class: "btn primary", type: "button", text: "I did it", onclick: function () { award(2, null); next(); } }),
+        el("button", { class: "btn", type: "button", text: "Save for later", onclick: function () { next(0); } }),
+      ]));
+    },
+
+    explainBack: function (step, card, lesson) {
+      put(head(step, "Explain it back"));
+      stage.appendChild(el("p", { class: "read", text: card.prompt }));
+      var ta = el("textarea", { "aria-label": "Your explanation", placeholder: "In my own words…" }), result = el("div", { style: "display:grid;gap:10px" });
+      var submit = el("button", { class: "btn primary", type: "button", text: "Check my answer", onclick: function () {
+        if (ta.value.trim().length < 15) { ta.focus(); toast("Write a sentence or two first"); return; }
+        submit.disabled = true; ta.readOnly = true;
+        var boxes = card.keyPoints.map(function (p) { return el("li", null, [el("label", null, [el("input", { type: "checkbox" }), el("span", { html: inline(p) })])]); });
+        result.appendChild(el("div", { class: "feedback info" }, [el("strong", { text: "Did you mention…" }), el("ul", { class: "check-list" }, boxes)]));
+        result.appendChild(feedback("info", "One strong answer", card.modelAnswer));
+        result.appendChild(el("div", { class: "actions" }, [el("button", { class: "btn", type: "button", text: "Score my answer", onclick: function (e) {
+          e.currentTarget.disabled = true;
+          var n = boxes.filter(function (b) { return b.querySelector("input").checked; }).length;
+          award(n + 1, n >= 2);
+          result.appendChild(feedback(n >= 2 ? "good" : "miss", n + " of " + card.keyPoints.length + " key points", null, n + 1));
+          var c = cites(lesson, card.cites); if (c) result.appendChild(c);
+          result.appendChild(el("div", { class: "actions" }, [continueBtn()]));
+        } })]));
+      } });
+      stage.appendChild(ta); stage.appendChild(el("div", { class: "actions" }, [submit])); stage.appendChild(result);
+    },
+  };
+
+  function renderQuiz(step) {
+    var q = step.q, lesson = DAY.lessons[step.li];
+    put(head(step, q.prompt));
+    stage.appendChild(el("p", { class: "read note", text: "Question " + (step.qi + 1) + " of " + lesson.quiz.length + ". Pick an answer, then say how sure you are." }));
+    var box = el("div", { class: "choices" }), sure = el("div", { class: "sure", hidden: true }), result = el("div", { style: "display:grid;gap:10px" }), buttons = [], picked = null;
+    q.options.forEach(function (o, i) {
+      var b = el("button", { class: "choice", type: "button", onclick: function () {
+        picked = o.id; buttons.forEach(function (x) { x.classList.remove("picked"); }); b.classList.add("picked"); sure.hidden = false;
+      } }, [el("span", { class: "key", text: o.id.toUpperCase() }), el("span", { html: inline(o.text) })]);
+      buttons.push(b); box.appendChild(b);
+    });
+    sure.appendChild(el("p", { text: "How sure are you?" }));
+    sure.appendChild(el("div", { class: "sure-row" }, [["Guessing", 0], ["Fairly sure", 1], ["Certain", 2]].map(function (s) {
+      return el("button", { type: "button", text: s[0], onclick: function () { reveal(s[1]); } });
+    })));
+    function reveal(level) {
+      sure.hidden = true;
+      var right = picked === q.correctOptionId;
+      buttons.forEach(function (x, i) { x.disabled = true; if (q.options[i].id === q.correctOptionId) x.classList.add("right"); else if (q.options[i].id === picked) x.classList.add("wrong"); });
+      var pts = right ? [1, 2, 3][level] : level === 2 ? -1 : 0;
+      award(pts, right);
+      result.appendChild(feedback(right ? "good" : "miss", right ? (level === 2 ? "Certain and right." : "Right.") : level === 2 ? "Certain, but not this time." : "Not this one.", q.explanation, pts));
+      result.appendChild(el("div", { class: "actions" }, [continueBtn()]));
+    }
+    stage.appendChild(box); stage.appendChild(sure); stage.appendChild(result);
+  }
+
+  function renderSummary() {
+    put([el("div", { class: "kicker" }, [el("span", { text: "Day " + DAY.dayNumber + " complete" })]), el("h1", { class: "step-title", text: DAY.theme })]);
+    stage.appendChild(el("div", { class: "stats" }, [
+      el("div", { class: "stat" }, [el("b", { text: String(S.points) }), el("span", { text: "points" })]),
+      el("div", { class: "stat" }, [el("b", { text: S.right + "/" + S.answered }), el("span", { text: "answers right" })]),
+      el("div", { class: "stat" }, [el("b", { text: minutes(S.usedSec) + " min" }), el("span", { text: "of your " + DAY.minutesPerDay })]),
+    ]));
+    var later = [];
+    DAY.lessons.forEach(function (l) { l.videos.forEach(function (v) { if (S.later.indexOf(v.url) >= 0) later.push(v); }); });
+    if (later.length) stage.appendChild(el("div", { class: "feedback info" }, [el("strong", { text: "Saved for later" })].concat(later.map(function (v) { return el("a", { href: v.url, target: "_blank", rel: "noopener", text: v.title + " (" + v.excerpt + ")" }); }))));
+    if (DAY.nextTheme) stage.appendChild(el("div", { class: "tomorrow" }, [el("strong", { text: "Tomorrow · Day " + (DAY.dayNumber + 1) + ": " + DAY.nextTheme }), el("span", { text: "Come back to keep your streak going." })]));
+    stage.appendChild(el("div", { class: "actions" }, [el("button", { class: "btn", type: "button", text: "Play this day again", onclick: restart })]));
+  }
+
+  function restart() { S = fresh(); save(); render(); }
+  document.getElementById("restart").addEventListener("click", restart);
+  document.getElementById("course-line").textContent = DAY.courseTitle + " · Day " + DAY.dayNumber + " of " + DAY.days + " · preview";
+  document.getElementById("day-title").textContent = DAY.theme;
+  document.title = DAY.courseTitle + " · Day " + DAY.dayNumber;
+  if (S.i >= steps.length) S = fresh();
+  render();
+})();
+</script>
+</body>
+</html>

@@ -5,6 +5,7 @@ import { buildCurriculumPrompt } from "@/lib/pipeline/prompts/curriculum";
 import { buildExaminerPrompt, questionCount } from "@/lib/pipeline/prompts/examiner";
 import { buildFactCheckerPrompt } from "@/lib/pipeline/prompts/factChecker";
 import { buildIntakePrompt, daysUntilWeekdayTable, localToday } from "@/lib/pipeline/prompts/intake";
+import { renderCardsText } from "@/lib/pipeline/cards";
 import { buildLessonWriterPrompt, type LessonWriterPromptInput } from "@/lib/pipeline/prompts/lessonWriter";
 import { buildPlannerPrompt } from "@/lib/pipeline/prompts/planner";
 import { formatBudgetSlots, JSON_ONLY, type PromptPair } from "@/lib/pipeline/prompts/shared";
@@ -42,10 +43,12 @@ const lessonInput: LessonWriterPromptInput = {
     { title: "Microsoft Support: SUM function", url: "https://support.microsoft.com/sum", grounding: "SUM adds values." },
     { title: "IF function", url: "https://support.microsoft.com/if", grounding: "IF returns one value if true." },
   ],
+  videos: [],
   level: "beginner",
   topicType: "skill",
   sensitiveDomain: null,
 };
+const lessonText = renderCardsText(lesson.activities);
 
 const prompts: Record<string, { pair: PromptPair; keys: string[] }> = {
   intake: {
@@ -59,11 +62,11 @@ const prompts: Record<string, { pair: PromptPair; keys: string[] }> = {
   },
   lessonWriter: { pair: buildLessonWriterPrompt(lessonInput), keys: Object.keys(validOutputs.lessonWriter) },
   examiner: {
-    pair: buildExaminerPrompt({ contentMd: lesson.contentMd, objectives: ["Explain X", "Apply Y"], level: "beginner" }),
+    pair: buildExaminerPrompt({ contentMd: lessonText, objectives: ["Explain X", "Apply Y"], level: "beginner" }),
     keys: ["questions", "prompt", "options", "correctOptionId", "explanation"],
   },
   factChecker: {
-    pair: buildFactCheckerPrompt({ contentMd: lesson.contentMd, sources: [{ index: 1, title: "Britannica", grounding: "Born 356 BCE." }], level: "beginner" }),
+    pair: buildFactCheckerPrompt({ contentMd: lessonText, sources: [{ index: 1, title: "Britannica", grounding: "Born 356 BCE." }], level: "beginner" }),
     keys: ["findings", "claim", "sourceIndex", "passageSays", "verdict", "suggestion"],
   },
 };
@@ -153,8 +156,10 @@ describe("curriculum prompt", () => {
 describe("lesson writer prompt", () => {
   it("numbers the sources and sets the word range from reading minutes", () => {
     const { prompt } = prompts.lessonWriter!.pair;
-    // 15-min skill lesson: reading 7 min -> 1050–1400 words
-    expect(prompt).toContain("1050–1400 words");
+    // 15-min skill lesson: reading 5 min -> 750–1000 words; activities 8 min, less a 3-question quiz and a 2-min practice step
+    expect(prompt).toContain("750–1000 words");
+    expect(prompt).toContain("Activities: about 5 activity cards, not counting practice steps.");
+    expect(prompt).toContain("Practice included: yes, practiceStep cards totalling about 2 minutes.");
     expect(prompt).toContain("[1] Microsoft Support: SUM function");
     expect(prompt).toContain("[2] IF function");
   });
@@ -173,12 +178,12 @@ describe("lesson writer prompt", () => {
     expect(rewrite.prompt).toContain('[unsupported] "before he turned 33"');
   });
 
-  it("tells the writer when there is no practice task", () => {
+  it("tells the writer when there is no practice step", () => {
     const noPractice = buildLessonWriterPrompt({
       ...lessonInput,
       lesson: { ...lessonInput.lesson, includesPractice: false },
     });
-    expect(noPractice.prompt).toContain("practiceTask must be null");
+    expect(noPractice.prompt).toContain("Practice included: no (no practiceStep cards).");
   });
 });
 

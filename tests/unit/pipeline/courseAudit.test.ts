@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { auditCourse, auditLesson, longestCopiedRun, longQuotes, proseWordCount, uncitedSections } from "@/lib/pipeline/courseAudit";
-import type { GeneratedLesson } from "@/lib/pipeline/runCourse";
+import type { CourseResult, GeneratedLesson } from "@/lib/pipeline/runCourse";
+import type { LessonWriterOutput } from "@/lib/pipeline/schemas";
+
+import { validOutputs } from "../../fixtures/agents";
 
 const source =
   "Alexander the Great was king of the ancient Greek kingdom of Macedon and a member of the Argead dynasty. He succeeded his father Philip II to the throne in 336 BC at the age of 20 and spent most of his ruling years conducting a lengthy military campaign throughout Western Asia and Egypt.";
@@ -76,6 +79,49 @@ describe("auditLesson", () => {
     expect(a.lengthStatus).toBe("short");
     expect(a.copiedRun).toMatchObject({ words: 29, sourceIndex: 1 });
     expect(a.lowCredibilitySources).toEqual(["https://www.quora.com/x"]);
+  });
+});
+
+describe("auditLesson on card lessons", () => {
+  const cardLesson = (activities: LessonWriterOutput["activities"]): GeneratedLesson => ({
+    ...lesson({ readingMinutes: 1 }),
+    slot: { estMinutes: 10, readingMinutes: 1, mediaMinutes: 2, practiceMinutes: 7 },
+    content: { activities, keyTerms: [] },
+  });
+  const cards = (validOutputs.lessonWriter as LessonWriterOutput).activities;
+
+  it("counts reading words, activity types and time for the fixture", () => {
+    const a = auditLesson(cardLesson(cards), new Map());
+    expect(a.format).toBe("cards");
+    expect(a.uncitedSections).toEqual([]);
+    expect(a.cards).toMatchObject({
+      cards: 6,
+      activityTypes: ["predict", "mythFact", "order", "explainBack"],
+      uncitedCards: [],
+      longPages: [],
+      structureProblems: [],
+      videosSavedForLater: 0,
+    });
+    // Two reading cards of 67 and 27 words, each followed by an activity.
+    expect(a.words).toBe(94);
+    expect(a.cards!.maxReadingBetweenActions).toBe(67);
+  });
+
+  it("reports uncited cards, structure problems and too few activity types in the course problems", () => {
+    const [predict, reading1, mythFact] = cards;
+    const broken = [{ ...reading1!, cites: [] }, predict!, { ...mythFact!, part: "Elsewhere" }] as LessonWriterOutput["activities"];
+    const course = {
+      intake: { topic: "t", days: 1, minutesPerDay: 15, level: "beginner", goal: "understand" },
+      syllabus: { plan: { sensitiveDomain: null }, timings: { totalMs: 1 }, curriculum: { syllabus: { days: [{ dayNumber: 1, lessons: [{ estMinutes: 15 }] }] } } },
+      deepResearch: { output: [] },
+      lessons: [{ status: "ready", lesson: cardLesson(broken) }],
+      stats: { llm: { costUsd: 0.1 }, lessons: { factCheckPassRate: 1 } },
+    } as unknown as CourseResult;
+    const problems = auditCourse(course).problems.join("\n");
+    expect(problems).toContain('card c2 (reading) has no citation');
+    expect(problems).toContain('part "Elsewhere" must open with a reading card');
+    expect(problems).toContain("uses 2 activity type(s) (predict, mythFact; target 3+)");
+    expect(problems).toMatch(/takes about \d+ min \(slot 10 min\)/);
   });
 });
 

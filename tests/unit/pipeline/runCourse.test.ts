@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { callJson } from "@/lib/llm/client";
 import type { ResearchDeps } from "@/lib/pipeline/researcher";
-import { generateLesson, generateSyllabus, slotForItem, type LessonRequest } from "@/lib/pipeline/runCourse";
+import { lessonTextOf } from "@/lib/pipeline/cards";
+import { generateLesson, generateSyllabus, slotForItem, type GeneratedLesson, type LessonRequest } from "@/lib/pipeline/runCourse";
 import type { CompletedIntake, ExaminerOutput, FactCheckOutput, LessonWriterOutput, ResearcherOutput } from "@/lib/pipeline/schemas";
 import { buildTimeBudget } from "@/lib/pipeline/timeBudget";
 import type { rateRelevance } from "@/lib/research/relevance";
@@ -36,7 +37,7 @@ describe("generateSyllabus", () => {
     const result = await generateSyllabus(intake, { callJson: call, research, clock });
 
     expect(order).toEqual(["planner", ...Array(7).fill("tavily"), "relevance", "curriculum"]);
-    expect(result.budget[0]!.lessons[0]).toEqual({ estMinutes: 15, readingMinutes: 7, mediaMinutes: 2, practiceMinutes: 6 }); // skill split
+    expect(result.budget[0]!.lessons[0]).toEqual({ estMinutes: 15, readingMinutes: 5, mediaMinutes: 2, practiceMinutes: 8 }); // skill split
     expect(result.research).toHaveLength(7);
     expect(result.researchStats).toMatchObject({ mode: "light", webQueries: 7 });
     expect(result.curriculum).toMatchObject({ retried: false, snapped: false });
@@ -64,11 +65,22 @@ describe("generateLesson", () => {
   const req: LessonRequest = { intake, plan: excelPlan, syllabus, budget, research, dayNumber: 1, position: 0 };
 
   const draft = validOutputs.lessonWriter as LessonWriterOutput; // cites [1], [2]
-  const withPractice = (content: LessonWriterOutput, tag: string): LessonWriterOutput => ({
-    ...content,
-    contentMd: `${content.contentMd}\n\n<!-- ${tag} -->`,
-    practiceTask: { instructions: "Open a new workbook and add a sheet.", expectedOutcome: "A workbook with two sheets." },
-  });
+  /** The draft plus the lesson's video and a practice step whose instructions carry a tag naming the draft. */
+  const withPractice = (content: LessonWriterOutput, tag: string): LessonWriterOutput => {
+    const [first, last] = [content.activities.slice(0, 4), content.activities.slice(4)];
+    const part = first.at(-1)!.part;
+    return {
+      ...content,
+      activities: [
+        ...first,
+        { id: "v1", type: "video", part, cites: [], video: 1, watchFor: ["The tabs at the bottom", "Ctrl+Arrow"] },
+        ...last.slice(0, -1),
+        { id: "p1", type: "practiceStep", part, cites: [], instructions: `Open a new workbook and add a sheet. <!-- ${tag} -->`, expectedOutcome: "A workbook with two sheets.", minutes: 3 },
+        last.at(-1)!,
+      ],
+    };
+  };
+  const textOf = (lesson: GeneratedLesson) => lessonTextOf(lesson.content, lesson.videos);
   const quiz = validOutputs.examiner as ExaminerOutput;
   const clean: FactCheckOutput = { findings: [] };
   /**
@@ -99,7 +111,7 @@ describe("generateLesson", () => {
     const lesson = await generateLesson(req, { callJson: call });
 
     expect(calls(call).map((o) => o.agent)).toEqual(["lessonWriter", "factChecker", "examiner"]);
-    expect(lesson.content.contentMd).toMatch(/\[1\]/);
+    expect(textOf(lesson)).toMatch(/\[1\]/);
     expect(lesson.sources).toEqual([
       { index: 1, title: "Microsoft: Excel basics", url: "https://support.microsoft.com/basics" },
       { index: 2, title: "Exceljet: navigation", url: "https://exceljet.net/basics" },
@@ -108,7 +120,7 @@ describe("generateLesson", () => {
     expect(lesson.quiz.questions.length).toBeGreaterThanOrEqual(3);
     expect(lesson.quiz.questions.length).toBeLessThanOrEqual(5);
     expect(lesson.factCheck).toEqual({ passed: true, issues: [], firstIssues: [], attempts: 1, rewritten: false, rewriteError: null, unverifiedClaims: [] });
-    expect(lesson.slot).toEqual({ estMinutes: 15, readingMinutes: 7, mediaMinutes: 2, practiceMinutes: 6 });
+    expect(lesson.slot).toEqual({ estMinutes: 15, readingMinutes: 5, mediaMinutes: 2, practiceMinutes: 8 });
 
     // Grounded sources are numbered first; the fact-checker gets only the cited ones, with their passages
     expect(calls(call)[0]!.prompt).toMatch(/\[1\] Microsoft: Excel basics[\s\S]*\[2\] Exceljet: navigation[\s\S]*\[3\] Blog/);
@@ -131,7 +143,7 @@ describe("generateLesson", () => {
     expect(rewritePrompt).not.toContain("Darius II");
     expect(calls(call)[4]!.prompt).toContain("<!-- rewrite -->");
     expect(calls(call)[4]!.prompt).not.toContain("<!-- first draft -->");
-    expect(lesson.content.contentMd).toContain("<!-- rewrite -->");
+    expect(textOf(lesson)).toContain("<!-- rewrite -->");
     expect(lesson.factCheck).toEqual({
       passed: true,
       issues: [],
@@ -173,7 +185,7 @@ describe("generateLesson", () => {
   it("ships the first draft with its notice when the rewrite itself fails", async () => {
     const call = llm({ lessonWriter: [withPractice(draft, "first draft")], factChecker: [failingCheck], examiner: [quiz] });
     const lesson = await generateLesson(req, { callJson: call }); // the rewrite call finds no queued response and throws
-    expect(lesson.content.contentMd).toContain("<!-- first draft -->");
+    expect(textOf(lesson)).toContain("<!-- first draft -->");
     expect(lesson.factCheck).toMatchObject({ passed: false, attempts: 1, rewritten: false, rewriteError: "no mock response for lessonWriter" });
     expect(lesson.factCheck.unverifiedClaims).toEqual(failingIssues);
     expect(calls(call).at(-1)!.agent).toBe("examiner");
@@ -190,7 +202,7 @@ describe("generateLesson", () => {
   it("keeps a successful rewrite when its re-check fails, with the earlier issues as its notice", async () => {
     const call = llm({ lessonWriter: [withPractice(draft, "first draft"), withPractice(draft, "rewrite")], factChecker: [failingCheck], examiner: [quiz] });
     const lesson = await generateLesson(req, { callJson: call }); // the second fact-check has no queued response and throws
-    expect(lesson.content.contentMd).toContain("<!-- rewrite -->");
+    expect(textOf(lesson)).toContain("<!-- rewrite -->");
     expect(lesson.factCheck).toMatchObject({ passed: false, attempts: 1, rewritten: true, rewriteError: "re-check failed: no mock response for factChecker" });
     expect(lesson.factCheck.unverifiedClaims.map((i) => i.claim)).toEqual(failingIssues.map((i) => i.claim));
   });

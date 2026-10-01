@@ -77,21 +77,21 @@ describe("course lengths", () => {
 });
 
 describe("lesson split by topic type", () => {
-  it("knowledge: 55% reading, 20% media, 25% practice + quiz", () => {
+  it("knowledge: 35% reading, 20% media, 45% activities, practice and quiz", () => {
     expect(splitLesson(20, "knowledge")).toEqual({
       estMinutes: 20,
-      readingMinutes: 11,
+      readingMinutes: 7,
       mediaMinutes: 4,
-      practiceMinutes: 5,
+      practiceMinutes: 9,
     });
   });
 
-  it("skill: 45% reading, 15% media, 40% practice + quiz", () => {
+  it("skill: 30% reading, 15% media, 55% activities, practice and quiz", () => {
     expect(splitLesson(20, "skill")).toEqual({
       estMinutes: 20,
-      readingMinutes: 9,
+      readingMinutes: 6,
       mediaMinutes: 3,
-      practiceMinutes: 8,
+      practiceMinutes: 11,
     });
   });
 
@@ -100,7 +100,8 @@ describe("lesson split by topic type", () => {
     const skill = buildTimeBudget({ days: 3, minutesPerDay: 30, topicType: "skill" });
     expect(skill.map(lessonMinutes)).toEqual(knowledge.map(lessonMinutes));
     expect(skill[0]!.lessons[0]!.practiceMinutes).toBeGreaterThan(knowledge[0]!.lessons[0]!.practiceMinutes);
-    expect(skill[0]!.lessons[0]!.readingMinutes).toBeLessThan(knowledge[0]!.lessons[0]!.readingMinutes);
+    expect(skill[0]!.lessons[0]!.readingMinutes).toBeLessThanOrEqual(knowledge[0]!.lessons[0]!.readingMinutes);
+    expect(splitLesson(20, "skill").readingMinutes).toBeLessThan(splitLesson(20, "knowledge").readingMinutes);
   });
 
   it("hybrid uses the knowledge split", () => {
@@ -110,15 +111,15 @@ describe("lesson split by topic type", () => {
   });
 
   it("gives the rounding difference to reading", () => {
-    // 15 min knowledge: media 3, practice round(3.75) = 4, reading takes the rest (8, not round(8.25))
+    // 15 min knowledge: media 3, practice round(6.75) = 7, reading takes the rest (5, not round(5.25))
     expect(splitLesson(15, "knowledge")).toEqual({
       estMinutes: 15,
-      readingMinutes: 8,
+      readingMinutes: 5,
       mediaMinutes: 3,
-      practiceMinutes: 4,
+      practiceMinutes: 7,
     });
-    // 10 min knowledge: practice round(2.5) = 3 (half-up), reading 5
-    expect(splitLesson(10, "knowledge").readingMinutes).toBe(5);
+    // 10 min knowledge: media 2, practice round(4.5) = 5 (half-up), reading 3
+    expect(splitLesson(10, "knowledge").readingMinutes).toBe(3);
   });
 });
 

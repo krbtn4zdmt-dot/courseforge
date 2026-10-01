@@ -3,15 +3,32 @@ import "server-only";
 import { stripCode } from "@/lib/markdown";
 import { domainCredibility, CREDIBILITY } from "@/lib/research/scoring";
 
+import {
+  ACTION_TYPES,
+  isCardLesson,
+  lessonSeconds,
+  lessonTextOf,
+  maxReadingBetweenActions,
+  pageWordCount,
+  readingWords,
+  structureProblems,
+  videoPlan,
+} from "./cards";
+import { questionCount } from "./prompts/examiner";
 import { WORDS_PER_READING_MINUTE } from "./prompts/lessonWriter";
 import type { CourseResult, GeneratedLesson } from "./runCourse";
-import { extractCitationIndexes } from "./schemas";
+import { extractCitationIndexes, MAX_WORDS_PER_PAGE, PAGE_WORDS_TOLERANCE, UNCITED_CARD_TYPES } from "./schemas";
 
 // Mechanical checks on a generated course, for the Phase 1 quality review (/test-course).
 // They measure the CLAUDE.md content rules and SPEC targets; they don't judge accuracy or clarity.
 
 export const MAX_QUOTE_WORDS = 15; // AGENTS.md: quotes under 15 words
 export const COPY_RUN_WORDS = 20; // a verbatim run this long outside quotes is treated as copying
+/** SPEC: an action at least every ~90 seconds of reading, which is about 300 words at 200 words a minute. */
+export const MAX_READING_WORDS_BETWEEN_ACTIONS = 300;
+/** A card lesson's estimated time may differ from its slot by this share before the audit reports it. */
+export const TIME_TOLERANCE = 0.25;
+export const MIN_ACTIVITY_TYPES = 3;
 const SHINGLE = 8;
 
 export const SPEC_TARGETS = {
@@ -78,11 +95,28 @@ export function uncitedSections(md: string): string[] {
     .map(({ heading }) => heading);
 }
 
+/** Checks that only apply to interactive (card) lessons. */
+export interface CardAudit {
+  cards: number;
+  activityTypes: string[];
+  /** Most reading words between two actions. */
+  maxReadingBetweenActions: number;
+  /** Card ids (with type) that cite nothing, other than videos and practice steps. */
+  uncitedCards: string[];
+  longPages: { cardId: string; words: number }[];
+  structureProblems: string[];
+  estimatedMinutes: number;
+  videosSavedForLater: number;
+}
+
 export interface LessonAudit {
   day: number;
   position: number;
   title: string;
   kind: "lesson" | "review";
+  format: "cards" | "prose";
+  slotMinutes: number;
+  /** Reading words: all reading pages of a card lesson, or a prose lesson's article. */
   words: number;
   wordRange: [number, number];
   lengthStatus: "short" | "ok" | "long";
@@ -93,11 +127,34 @@ export interface LessonAudit {
   videos: number;
   unverifiedClaims: number;
   rewritten: boolean;
+  cards: CardAudit | null;
+}
+
+function auditCards(lesson: GeneratedLesson): CardAudit | null {
+  const { content, slot, videos } = lesson;
+  if (!isCardLesson(content)) return null;
+  const cards = content.activities;
+  const plan = videoPlan(cards, videos, slot.mediaMinutes);
+  return {
+    cards: cards.length,
+    activityTypes: [...new Set(cards.filter((c) => ACTION_TYPES.includes(c.type)).map((c) => c.type))],
+    maxReadingBetweenActions: maxReadingBetweenActions(cards),
+    uncitedCards: cards.filter((c) => !c.cites.length && !UNCITED_CARD_TYPES.includes(c.type)).map((c) => `${c.id} (${c.type})`),
+    longPages: cards.flatMap((c) =>
+      c.type === "reading"
+        ? c.pages.map((p) => ({ cardId: c.id, words: pageWordCount(p) })).filter((p) => p.words > MAX_WORDS_PER_PAGE + PAGE_WORDS_TOLERANCE)
+        : [],
+    ),
+    structureProblems: structureProblems(cards),
+    estimatedMinutes: Math.round(lessonSeconds(cards, videos, slot.mediaMinutes, questionCount(lesson.spec.objectives.length)) / 60),
+    videosSavedForLater: [...plan.values()].filter((v) => !v.fits).length,
+  };
 }
 
 export function auditLesson(lesson: GeneratedLesson, groundingByUrl: ReadonlyMap<string, string>): LessonAudit {
-  const md = lesson.content.contentMd;
-  const count = proseWordCount(md);
+  const { content } = lesson;
+  const md = lessonTextOf(content, lesson.videos);
+  const count = isCardLesson(content) ? content.activities.reduce((n, c) => n + readingWords(c), 0) : proseWordCount(md);
   const range: [number, number] = [
     lesson.slot.readingMinutes * WORDS_PER_READING_MINUTE.min,
     lesson.slot.readingMinutes * WORDS_PER_READING_MINUTE.max,
@@ -118,16 +175,19 @@ export function auditLesson(lesson: GeneratedLesson, groundingByUrl: ReadonlyMap
     position: lesson.position,
     title: lesson.spec.title,
     kind: lesson.spec.kind,
+    format: isCardLesson(content) ? "cards" : "prose",
+    slotMinutes: lesson.slot.estMinutes,
     words: count,
     wordRange: range,
     lengthStatus,
-    uncitedSections: uncitedSections(md),
+    uncitedSections: isCardLesson(content) ? [] : uncitedSections(md),
     longQuotes: longQuotes(md),
     copiedRun,
     lowCredibilitySources: lesson.sources.filter((s) => domainCredibility(s.url) === CREDIBILITY.low).map((s) => s.url),
     videos: lesson.videos.length,
     unverifiedClaims: lesson.factCheck.unverifiedClaims.length,
     rewritten: lesson.factCheck.rewritten,
+    cards: auditCards(lesson),
   };
 }
 
@@ -185,6 +245,22 @@ export function auditCourse(course: CourseResult): CourseAudit {
     for (const s of a.uncitedSections) problems.push(`${where(a)} section "${s}" has no citation`);
     if (a.lengthStatus !== "ok") problems.push(`${where(a)} is ${a.lengthStatus}: ${a.words} words (target ${a.wordRange[0]}–${a.wordRange[1]})`);
     for (const url of a.lowCredibilitySources) problems.push(`${where(a)} cites a low-credibility source: ${url}`);
+    const c = a.cards;
+    if (c) {
+      for (const id of c.uncitedCards) problems.push(`${where(a)} card ${id} has no citation`);
+      for (const p of c.longPages) problems.push(`${where(a)} card ${p.cardId} has a ${p.words}-word page (limit ${MAX_WORDS_PER_PAGE})`);
+      for (const p of c.structureProblems) problems.push(`${where(a)}: ${p}`);
+      if (c.maxReadingBetweenActions > MAX_READING_WORDS_BETWEEN_ACTIONS) {
+        problems.push(`${where(a)} has ${c.maxReadingBetweenActions} words of reading between actions (limit ${MAX_READING_WORDS_BETWEEN_ACTIONS}, about 90 seconds)`);
+      }
+      if (c.activityTypes.length < MIN_ACTIVITY_TYPES) {
+        problems.push(`${where(a)} uses ${c.activityTypes.length} activity type(s) (${c.activityTypes.join(", ") || "none"}; target ${MIN_ACTIVITY_TYPES}+)`);
+      }
+      const slot = a.slotMinutes;
+      if (Math.abs(c.estimatedMinutes - slot) > slot * TIME_TOLERANCE) {
+        problems.push(`${where(a)} takes about ${c.estimatedMinutes} min (slot ${slot} min)`);
+      }
+    }
   }
   for (const d of duplicateOptions) problems.push(`Duplicate quiz options in ${d}`);
   const answers = Object.values(quizAnswerSpread);

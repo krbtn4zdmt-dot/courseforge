@@ -1,10 +1,69 @@
 {
-  "contentMd": "## Why this matters\nAlexander III of Macedon built one of the largest empires of the ancient world before he turned 33 [1]. Knowing how he did it explains why Greek language and culture spread from Egypt to India.\n\n## Early life\nAlexander was born in Pella in 356 BCE, the son of King Philip II [1]. As a teenager he was taught by the philosopher Aristotle, who encouraged his interest in science and Homer's epics [2].\n\n## Taking the throne\nWhen Philip was assassinated in 336 BCE, Alexander, then 20, moved quickly to secure the throne and put down revolts in Greece [1, 2].\n\n## Recap\n- Alexander was born in 356 BCE and became king at 20.\n- Aristotle was his tutor.\n- He secured power fast after his father's murder.",
+  "activities": [
+    {
+      "id": "c1",
+      "type": "predict",
+      "part": "A prince of Macedon",
+      "cites": [1],
+      "prompt": "How old was Alexander when he became king?",
+      "options": ["14", "20", "33"],
+      "answer": 1,
+      "reveal": "He took the throne at 20, after his father was killed."
+    },
+    {
+      "id": "c2",
+      "type": "reading",
+      "part": "A prince of Macedon",
+      "cites": [1, 2],
+      "title": "Early life",
+      "pages": [
+        "Alexander III of Macedon built one of the largest empires of the ancient world before he turned 33 [1]. Knowing how he did it explains why Greek language and culture spread from Egypt to India.",
+        "Alexander was born in Pella in 356 BCE, the son of King Philip II [1]. As a teenager he was taught by the philosopher Aristotle, who encouraged his interest in science and Homer's epics [2]."
+      ]
+    },
+    {
+      "id": "c3",
+      "type": "mythFact",
+      "part": "A prince of Macedon",
+      "cites": [1, 2],
+      "items": [
+        { "statement": "Alexander grew up in Athens.", "fact": false, "why": "He was born in Pella, the capital of Macedon." },
+        { "statement": "Aristotle was one of Alexander's teachers.", "fact": true, "why": "Aristotle tutored him as a teenager." }
+      ]
+    },
+    {
+      "id": "c4",
+      "type": "reading",
+      "part": "Taking the throne",
+      "cites": [1, 2],
+      "title": "Taking the throne",
+      "pages": [
+        "When Philip was assassinated in 336 BCE, Alexander, then 20, moved quickly to secure the throne [1].",
+        "He put down revolts in Greece before turning east toward Persia [1, 2]."
+      ]
+    },
+    {
+      "id": "c5",
+      "type": "order",
+      "part": "Taking the throne",
+      "cites": [1],
+      "prompt": "Put these events in order.",
+      "items": ["Alexander is born in Pella", "Aristotle tutors Alexander", "Philip II is assassinated", "Alexander puts down revolts in Greece"],
+      "explain": "Birth in 356 BCE, schooling as a teenager, then the throne at 20 in 336 BCE."
+    },
+    {
+      "id": "c6",
+      "type": "explainBack",
+      "part": "Taking the throne",
+      "cites": [1, 2],
+      "prompt": "In two or three sentences: how did Alexander's early life prepare him to rule?",
+      "keyPoints": ["He was the son of King Philip II", "Aristotle gave him a broad education", "He acted fast to secure the throne at 20"],
+      "modelAnswer": "As Philip II's son he grew up at the Macedonian court, and Aristotle gave him a broad education. When Philip was killed, he moved fast at 20 to secure power."
+    }
+  ],
   "keyTerms": [
     { "term": "Macedon", "definition": "An ancient kingdom north of the Greek city-states, ruled by Philip II and then Alexander." },
     { "term": "Hellenistic", "definition": "Describes the period and culture after Alexander, when Greek influence spread across his former empire." },
     { "term": "Pella", "definition": "The capital of Macedon and Alexander's birthplace." }
-  ],
-  "practiceTask": null,
-  "citedSourceIndexes": [1, 2]
+  ]
 }

@@ -38,7 +38,8 @@ pnpm research:smoke "<topic>"              # research clients + scoring smoke te
 pnpm gen:syllabus "<topic>" --days 7 --minutes 30 --level beginner --goal understand [--out out/x.json]
 pnpm gen:lesson --from out/x.json --day 1 --lesson 1   # one lesson (or pass the topic + intake flags)
 pnpm check:live                          # preflight (env, hosts, Anthropic key and models) + all Phase 1 live checks in order; logs to out/live-checks/
-pnpm audit:course out/<slug>.json        # mechanical quality audit of a generated course (content rules, SPEC targets)
+pnpm audit:course out/<slug>.json        # mechanical quality audit of a generated course (content rules, SPEC targets, card pacing)
+pnpm preview:day out/<slug>.json --day 2   # local HTML player for one generated day (task 1.9; no API calls)
 pnpm eval:factcheck [--reps 2] [--model smart] [--rescore out/eval/factcheck-<time>.json]   # fact-checker eval on labeled lessons (corpus in out/eval/factcheck/)
 pnpm eval:writer [--reps 2] [--draft-model fast|smart] [--writer-effort medium]   # lesson-writer eval: redraft lessons whose sources carry a known bad fact (same corpus)
 npx inngest-cli dev      # local Inngest dev server (Phase 3+)

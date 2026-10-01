@@ -33,11 +33,13 @@ export const MIN_LESSON_MINUTES = 10;
 export const MAX_LESSON_MINUTES = 25;
 export const MAX_LESSONS_PER_DAY = 4;
 
-// Percentages of a lesson's estMinutes. Reading takes whatever rounding leaves.
+// Percentages of a lesson's estMinutes. Reading takes whatever rounding leaves (about 35% for knowledge and
+// hybrid topics, 30% for skills). "practice" is the activity cards, practice steps and quiz (task 1.9:
+// interactive lessons spend most of their time on doing, as in the Day 2 prototypes).
 const SPLIT_PERCENT: Record<TopicType, { media: number; practice: number }> = {
-  knowledge: { media: 20, practice: 25 },
-  hybrid: { media: 20, practice: 25 },
-  skill: { media: 15, practice: 40 },
+  knowledge: { media: 20, practice: 45 },
+  hybrid: { media: 20, practice: 45 },
+  skill: { media: 15, practice: 55 },
 };
 
 /** Days 1–2: none. Day 3+: round(10%). Final day (including a 1-day course): ceil(30%). */

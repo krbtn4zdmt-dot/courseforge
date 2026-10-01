@@ -7,23 +7,34 @@ import { buildLessonWriterPrompt, type LessonWriterPromptInput } from "./prompts
 import { extractCitationIndexes, LessonWriterOutputSchema, type LessonWriterOutput } from "./schemas";
 
 /** The output schema plus the rules that depend on this lesson's inputs, so a violation gets the client's retry. */
-export function lessonOutputSchemaFor(sourceCount: number, includesPractice: boolean) {
+export function lessonOutputSchemaFor(sourceCount: number, includesPractice: boolean, videoCount: number) {
   return LessonWriterOutputSchema.superRefine((v, ctx) => {
-    const outOfRange = [...new Set([...extractCitationIndexes(v.contentMd), ...v.citedSourceIndexes])].filter(
-      (n) => n > sourceCount,
-    );
+    const cited = v.activities.flatMap((c) => [...c.cites, ...(c.type === "reading" ? c.pages.flatMap(extractCitationIndexes) : [])]);
+    const outOfRange = [...new Set(cited)].filter((n) => n > sourceCount).sort((a, b) => a - b);
     if (outOfRange.length) {
       ctx.addIssue({
         code: "custom",
-        path: ["citedSourceIndexes"],
+        path: ["activities"],
         message: `cites source(s) ${outOfRange.join(", ")} but only [1]–[${sourceCount}] exist`,
       });
     }
-    if (includesPractice && !v.practiceTask) {
-      ctx.addIssue({ code: "custom", path: ["practiceTask"], message: "required: this lesson includes practice" });
+    const placed = v.activities.flatMap((c) => (c.type === "video" ? [c.video] : []));
+    const unknown = placed.filter((n) => n > videoCount);
+    if (unknown.length) {
+      ctx.addIssue({ code: "custom", path: ["activities"], message: `video ${unknown.join(", ")} doesn't exist (${videoCount} videos)` });
     }
-    if (!includesPractice && v.practiceTask) {
-      ctx.addIssue({ code: "custom", path: ["practiceTask"], message: "must be null: this lesson has no practice" });
+    if (new Set(placed).size !== placed.length) {
+      ctx.addIssue({ code: "custom", path: ["activities"], message: "place each video at most once" });
+    }
+    if (videoCount > 0 && !placed.length) {
+      ctx.addIssue({ code: "custom", path: ["activities"], message: `place at least one of the ${videoCount} videos` });
+    }
+    const practice = v.activities.some((c) => c.type === "practiceStep");
+    if (includesPractice && !practice) {
+      ctx.addIssue({ code: "custom", path: ["activities"], message: "add a practiceStep card: this lesson includes practice" });
+    }
+    if (!includesPractice && practice) {
+      ctx.addIssue({ code: "custom", path: ["activities"], message: "remove the practiceStep cards: this lesson has no practice" });
     }
   });
 }
@@ -51,7 +62,7 @@ export async function writeLesson(
     ...(options.effort && { effort: options.effort }),
     system,
     prompt,
-    schema: lessonOutputSchemaFor(input.sources.length, input.lesson.includesPractice),
+    schema: lessonOutputSchemaFor(input.sources.length, input.lesson.includesPractice, input.videos.length),
     onUsage: deps.onUsage,
   });
 }
