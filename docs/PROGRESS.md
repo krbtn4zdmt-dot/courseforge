@@ -228,3 +228,17 @@ Format:
   - Look into fact-checker false positives, which belong to the flag-rate work.
   - $0.75 is still far off and needs a product decision.
 - Decisions: none yet; `medium` effort stays pending that isolation run.
+
+## 2026-10-01: Cost overrun, effort isolation test; lesson writer back to default effort (supports 1.6 and the SPEC cost target)
+- Evidence: Alexander (3 days) with stripped grounding at the default (`high`) effort: 248.0s, $1.04, 6/6 lessons ready, 9 lesson-writer calls ($0.0854 per call), 3 rewrites, flag rate 50% (3/6). Average writer output was 5,389 tokens, of which 1,647 were thinking. Comparison:
+  - Original (unstripped, `high`): $1.17; per call $0.1156; 1 rewrite; 1/6 flagged.
+  - Stripped, `high`: $1.04; per call $0.0854 (−26%); 3 rewrites; 3/6 flagged.
+  - Stripped, `medium`: $1.11; per call $0.0767 (−34%); 5 rewrites; 5/6 flagged; average thinking 257 tokens.
+- Changed: the lesson writer no longer sets `effort`. `medium` cut thinking by about 85%, but the extra rewrites made the course cost more ($1.11 vs $1.04) and flagged more lessons. The `effort` option in `callJson` stays. The decisions-log row is updated.
+- Some flags are genuine errors caught by the fact-checker: Hydaspes dated "526 BCE" (it was 326), and Gaugamela dated "October 31" (it was October 1), which appeared in two separate runs. Flag rates swing widely between runs of 6 lessons (17%, 50%, 83%), so whether stripping affects flags isn't established either.
+- `pnpm test` 344/344 passed; typecheck and lint are clean. No secrets in the diff, and no LLM calls outside `src/lib/llm/`.
+- Leftovers:
+  - 1.6 stays `[~]`: sections without citations are still found (17 in the latest Excel run, 1 in Alexander).
+  - Rewrites now decide course cost, so the flag-rate work (fact-checker false positives, factual errors in drafts) is the next cost lever.
+  - $0.75 is still far off: about $1.6 for Excel and $2.4 per 7 days for Alexander.
+- Decisions: the decisions-log row is updated (effort plumbing kept, no agent uses it).
