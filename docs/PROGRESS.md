@@ -307,3 +307,26 @@ Format:
   - 1.6 stays `[~]`: 1 uncited section in this Alexander run (course review "Quick self-check").
   - $0.75 per 7 days is still not reached ($1.82 here).
 - Decisions: one row added to the ARCHITECTURE.md decisions log.
+
+## 2026-10-01: Product direction: differentiators added to the plan (docs only)
+- Context: after playing the Day 2 interactive prototype, the user asked for every feature that would make CourseForge beat tutors and general AI chat to be part of the build:
+  - bring your syllabus and learn for a purpose
+  - group courses and a parent or teacher view
+  - commute mode and daily recap texts
+  - source quality controls and disagreement flags
+  - time-boxing, citations and accountability as the core promise
+  - the interactive day format (test-out, decisions, explain-it-back, coach)
+- Changed:
+  - SPEC.md: a "Why CourseForge wins" section; the core flow covers uploads, purpose, interactive days, catch-up and recap texts; new "Sources and trust" and "Learning together" sections; scope rebalanced across the MVP, V2 (Phase 5) and Phase 6. "Social features" is no longer out of scope, only public libraries and feeds are. New metrics: 7-day retention, day-2 return rate, test-out time saved. New guardrails: private uploads, opt-in leaderboards and texts, 13+ for the beta, a compliance review before schools.
+  - BUILD_PLAN.md:
+    - New Phase 1b (1.7–1.12) puts the differentiators in the pipeline before the quality review.
+    - 2.1 includes the new columns, and there's a new 2.4 for private uploads.
+    - 4.1–4.4 cover the upload/purpose intake, the coverage map, the interactive day player and streaks with catch-up.
+    - Phase 5 is rewritten (coach, spaced repetition, reminders, audio, recap texts, cache, payments), and there's a new Phase 6 (sharing model, groups, parent/teacher view, schools later).
+  - ARCHITECTURE.md: data-model additions (course purpose, deadline, source preference, requirements, coverage; `uploads`; lesson activities, test-out, micro path, disagreements; streak and activity-result fields), the later phases' tables and the membership-based RLS plan, and a decisions-log row.
+  - AGENTS.md: new intake fields and rules; the Tutor becomes the Coach (and grades explain-it-back); a new Requirements Mapper contract; a list of the Phase 1b contract changes.
+- Leftovers:
+  - 1.6 is still `[~]` (uncited sections); per the workflow, finish it before starting 1.7.
+  - The $0.75 cost target is still open, and 1.9 must not raise cost.
+  - Text-to-speech and SMS providers are to be chosen in tasks 5.5 and 5.6.
+- Decisions: one decisions-log row (the differentiators plan; PDFs read by Claude as documents).

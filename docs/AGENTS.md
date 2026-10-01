@@ -20,13 +20,19 @@ Parses the user's free-text request and decides what to ask next.
   goal: "understand" | "pass_test" | "practical_skill" | null,
   isAllowed: boolean,            // false for harmful topics
   refusalMessage: string | null, // friendly explanation when isAllowed is false
-  nextQuestion: string | null    // null when all fields are filled
+  nextQuestion: string | null,   // null when all fields are filled
+  // Phase 1b (tasks 1.7, 1.8, 1.11):
+  purpose: string | null,        // "visiting Rome in two weeks", "start a data analyst job Monday"
+  deadlineDate: string | null,   // ISO date when the user names one ("midterm next Thursday")
+  sourcePreference: "academic_only" | "standard" | "include_creators"   // default "standard"
 }
 ```
 Rules:
 - Ask at most one question per turn; never re-ask something answered.
 - `minutesPerDay` snaps to the nearest of 15 / 30 / 45 / 60 / 90 ("20 minutes" → 15, "an hour" → 60, "2 hours" → 90); default to 30 if the user says "whatever" or similar.
 - `days` counts today as day 1. "By Friday" said on a Wednesday is 3 days (Wed, Thu, Fri). If the named day is today ("by Friday" on a Friday), ask. "A week" = 7, "two weeks" = 14, "a month" = 30. Over 60 days: say the limit is 60 and ask whether 60 is fine.
+- A named date ("my midterm is next Thursday", "I start Monday") sets both `deadlineDate` and `days`. A purpose is recorded as said; don't ask for one if the user didn't give it.
+- When the user has uploaded a document, its requirements come from the Requirements Mapper; ask only for what it couldn't find (usually level and minutes per day).
 - **Allowed vs refused** is about what the course would teach someone to *do*, not the subject area:
   - Allowed: cybersecurity for defending systems or for certifications (e.g. Security+, ethical hacking on your own lab), how attacks work conceptually, history of wars and weapons, pharmacology and drug safety, mental-health topics, lock mechanics as a hobby.
   - Refused: making weapons, explosives or illegal drugs; breaking into systems, accounts or property that aren't yours; stalking or surveilling a person; self-harm methods; evading law enforcement.
@@ -118,5 +124,25 @@ Rules:
 - `passed` is computed in code, not by the model: the lesson fails if there is any `contradicted` or `outdated` issue, or more than 2 `unsupported` ones.
 - On failure, re-run the Lesson Writer once with the issues attached. If it still fails, mark the lesson `ready` with a visible "some claims could not be verified" notice listing them, and log it. The SPEC's fact-check flag rate is the share of lessons shipped with that notice.
 
-## 8. Tutor (V2, `tutor.ts`), MODEL_SMART
-Answers user questions inside a lesson using only that course's stored sources and lessons. If the answer isn't supported, it says so and suggests a search.
+## 8. Coach (V2, `coach.ts`), MODEL_FAST or MODEL_SMART (decide in task 5.3)
+Answers the learner's questions during a day using only that course's stored lessons and sources, and knows what they got wrong (from `progress.activity_results`). If the answer isn't supported, it says so and points to what the course does cover. Keeps answers short and often ends with one question that makes the learner think. The Day 2 prototype's "Chronicler" is the reference behaviour. Also grades explain-it-back answers against the lesson's key points (MVP, task 4.3), returning `{ covered: number[], praise: string, next: string, error: string }`.
+
+## 9. Requirements Mapper (Phase 1b, `requirementsMapper.ts`), MODEL_SMART
+**Input:** an uploaded class syllabus, job description or study guide (PDF sent as a document; DOCX or pasted text as text), today's date and time zone
+**Output:**
+```ts
+{
+  kind: "syllabus" | "job_description" | "study_guide" | "other",
+  title: string,
+  deadlineDate: string | null,   // the exam, start date or due date the document names
+  requirements: { id: string, text: string, weight: "core" | "supporting", dueDate: string | null }[]
+}
+```
+Rules: list what the document says the learner must know or do, in its own order; don't invent requirements; dates resolve against today. The planner must cover every `core` requirement and the curriculum's coverage report maps each one to a day (or says why not, e.g. "needs a lab").
+
+## Contract changes planned in Phase 1b
+- **Planner / Curriculum (1.7, 1.8):** take `requirements` or `purpose`; every lesson names the requirement, place or task it serves; output a coverage map.
+- **Lesson Writer (1.9):** `contentMd` is replaced by `activities: Card[]`, where a card is one of `story | predict | decide | match | order | mythFact | spotError | practiceStep | explainBack`. Each card carries its citations, and there is an action at least every ~90 seconds of reading. Original-wording, citation and length rules still apply, per card.
+- **Examiner (1.10):** also writes the 3-question test-out per lesson and marks which cards each question covers; warm-ups reuse earlier items.
+- **Researcher (1.11):** honours `sourcePreference` when collecting and scoring sources.
+- **Fact-Checker (1.11):** reports a conflict between cited passages as `disagreement` (shown to the learner as a "Sources disagree" note) instead of failing the lesson; scenario outcomes and every card are checked.

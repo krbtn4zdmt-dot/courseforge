@@ -130,6 +130,8 @@ tests/
 create table profiles (
   id uuid primary key references auth.users on delete cascade,
   display_name text,
+  streak_days int not null default 0,   -- task 4.4
+  last_active_date date,
   created_at timestamptz default now()
 );
 
@@ -145,6 +147,21 @@ create table courses (
   status text not null default 'draft'
     check (status in ('draft','syllabus_ready','active','completed','failed')),
   plan jsonb,                -- planner output
+  purpose text,              -- "visiting Rome in two weeks" (task 1.8)
+  deadline date,             -- from the intake, an uploaded syllabus or the purpose
+  source_preference text not null default 'standard'
+    check (source_preference in ('academic_only','standard','include_creators')),
+  requirements jsonb,        -- Requirements Mapper output for an uploaded syllabus (task 1.7)
+  coverage jsonb,            -- requirement or purpose -> day/lesson, plus anything not covered and why
+  created_at timestamptz default now()
+);
+
+create table uploads (       -- task 2.4: private Storage bucket, owner-only
+  id uuid primary key default gen_random_uuid(),
+  course_id uuid references courses(id) on delete cascade,
+  user_id uuid references profiles(id) on delete cascade,
+  storage_path text not null,
+  kind text check (kind in ('syllabus','job_description','study_guide','other')),
   created_at timestamptz default now()
 );
 
@@ -165,6 +182,10 @@ create table lessons (
   practice_task jsonb,
   video_ids text[],
   fact_check jsonb,
+  activities jsonb,          -- task 1.9: ordered activity cards, each with its citations
+  test_out jsonb,            -- task 1.10: questions + which cards they let the learner skip
+  micro_path int[],          -- task 1.12: card indexes of the 5-minute path
+  disagreements jsonb,       -- task 1.11: [{fact, versions: [{claim, sourceIds}]}]
   generated_at timestamptz,
   unique (course_id, day_number, position)
 );
@@ -202,6 +223,8 @@ create table progress (
   completed_at timestamptz,
   quiz_score real,
   feedback text check (feedback in ('too_easy','just_right','too_hard')),
+  activity_results jsonb,    -- per-card answers and confidence (drives warm-ups, skills map, adaptivity)
+  tested_out boolean not null default false,
   primary key (user_id, lesson_id)
 );
 
@@ -217,7 +240,9 @@ create table llm_calls (
 );
 ```
 
-Enable Row Level Security on all user tables: users can only read/write rows tied to their own `user_id` (via `courses.user_id` for child tables). Pipeline jobs use the service role key server-side.
+Enable Row Level Security on all user tables: users can only read/write rows tied to their own `user_id` (via `courses.user_id` for child tables). Pipeline jobs use the service role key server-side. Uploaded documents live in a private Storage bucket readable only by their owner, never by group members or viewers.
+
+**Later phases add their own migrations:** Phase 5 adds `review_items` (spaced repetition), `lesson_audio` (commute mode) and `recap_schedule` plus phone number and SMS consent on `profiles` (recap texts). Phase 6 adds `course_members (course_id, user_id, role check in ('owner','member','viewer'))` and rewrites RLS from owner-only to membership-based: members read the course and their own progress, the group leaderboard reads opted-in progress, viewers (parents, teachers) read the progress the learner shares.
 
 **Embeddings note:** Anthropic doesn't offer an embeddings endpoint. The MVP skips embeddings: relevance is a `MODEL_FAST` call and near-duplicates are caught with text shingles (see Research details). If relevance scoring proves weak in the Phase 1 review, add Voyage AI (`voyage-3`, 1024 dims) with `create extension vector` and an `embedding vector(1024)` column on `sources`, and log the change below.
 
@@ -279,3 +304,4 @@ Enable Row Level Security on all user tables: users can only read/write rows tie
 | 2026-10-01 | Fact-checker output is evidence-first findings (`sourceIndex`, `passageSays`, then `verdict` incl. `supported`); code drops `supported` and downgrades a contradiction whose quote isn't in the passage to `unsupported`. Claims are judged against their cited passage first; worked examples are skipped | Two thirds of shipped flags were claims a cited passage stated, often with a suggestion admitting the source agreed: the old schema made Haiku commit to `problem` before writing its reasoning. On the eval set: failed checks 26/54 → 8–10/54, supported claims flagged 9/32 → 0–2/32, the one real error still caught |
 | 2026-10-01 | `pnpm eval:factcheck` re-runs only the fact-checker on hand-labeled shipped lessons (`evals/factcheck/labels.json`); the corpus is course JSON under `out/eval/factcheck/` and is not committed; `--rescore` re-scores a saved run after a label fix | A course run gives 6–18 noisy lessons for ~$1–2; the eval gives 54 checks for ~$0.6 with known answers. The corpus holds third-party source text, so it stays out of git |
 | 2026-10-01 | Fact-checker findings must quote the lesson: code drops a finding whose `claim` isn't in the lesson text. A claim any cited passage supports is `supported` even when another passage (or the same one) disagrees. The fact-checker eval gains seeded errors (`edit`: one cited fact changed in a clean lesson) | The remaining "bad source" flags were mostly the checker listing a passage's own erroneous sentence (EBSCO's "Darius II", Britannica's "October 31") as if the lesson said it; the writer already hedged or used the majority version. With no real errors left in the hand-labeled set, seeded ones are what measure recall |
+| 2026-10-01 | The plan adopts the differentiators in SPEC.md ("Why CourseForge wins") as Phase 1b (pipeline: uploads, purpose, interactive cards, test-out, source strictness and disagreement flags, micro-lessons), Phase 4 (interactive day player, streaks, catch-up), Phase 5 (coach, spaced repetition, audio, recap texts) and Phase 6 (groups, parent/teacher view). Uploaded PDFs are read by Claude as documents rather than with a PDF parser; text-to-speech and SMS providers are chosen in their own tasks' mini-specs | The product has to beat tutors and general AI chat, not just produce correct courses; building the differentiators into the pipeline first lets the Phase 1 quality review judge them. Reading PDFs with Claude avoids a dependency |
