@@ -339,3 +339,13 @@ Format:
 - Evidence: a scripted browser play-through reached the end with no errors, and phone width has no horizontal overflow.
 - Leftovers: the prototype opens videos on YouTube in a new tab (the artifact page can't embed other sites); the app embeds them (task 4.3).
 - Decisions: none beyond the SPEC rule.
+
+## 2026-10-01: Excel Day 2 interactive prototype (prototype only)
+- Context: the user asked for the same teach-first interactive day for the Excel course.
+- Changed: a new artifact, "First Formulas", covers Excel Day 2 (formulas and the five essential functions). It uses the same structure as the Alexander day:
+  - A warm-up, a three-question test-out, paged readings of about 80 words each, two curated videos with "watch for" notes, predict, match, order, myth/fact, explain-it-back and the grounded Coach.
+  - New for Excel: a mini spreadsheet where the learner types real formulas. A small in-page engine handles + - * /, parentheses, references, ranges, and SUM/AVERAGE/MIN/MAX/COUNT. It gives Excel-style errors with hints (for example "x" for multiply), colour-codes the referenced cells and ranges, and flags typed numbers ("right answer, wrong habit"). A recalculation step shows C1 updating when B1 changes, and a price demo shows formula totals updating while a typed total goes stale.
+  - There is also a "formula toolkit" that fills as tools are taught, and an optional practice task in real Excel with expected results. The core day is about 27 minutes; the practice adds about 5 bonus minutes and says so.
+- Evidence: a scripted browser play-through reached the summary with no errors. Wrong formulas produced the expected hints. Test-out with 3 of 3 skips ahead to the price demo. Phone width has no horizontal overflow.
+- Leftovers: videos open on YouTube; the AI grading and the Coach need the viewer's Claude consent and otherwise fall back to a self-check. The prototype content is hand-condensed from the generated Excel course, so task 1.9 still needs to produce it from the pipeline.
+- Decisions: none.
